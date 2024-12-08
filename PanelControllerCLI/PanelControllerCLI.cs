@@ -12,6 +12,37 @@ namespace PanelControllerCLI
 
     public static class PanelControllerCLI
     {
+        private static readonly CLIInterpreter.Command[] _commandDelegates = [
+            new(Create.Generic),
+            new(Create.Channel),
+            new(Create.Profile),
+            new(Create.Mapping),
+            new(Create.MappedObject),
+            new(Create.PanelInfo),
+            new(Select.Generic),
+            new(Select.Profile),
+            new(Select.Mapping),
+            new(Select.MappedObject),
+            new(Select.Panel),
+            new(Edit.Name),
+            new(Edit.Property),
+            new(Edit.Collection),
+            new(Edit.CollectionOrder),
+            new(Show.Extensions),
+            new(Show.Generic),
+            new(Show.Channel),
+            new(Show.Profile),
+            new(Show.Mapping),
+            new(Show.MappedObject),
+            new(Show.PanelInfo),
+            new(Use.Profile),
+            new(Delete.Generic),
+            new(Delete.Profile),
+            new(Delete.Mapping),
+            new(Delete.MappedObject),
+            new(Delete.PanelInfo)
+        ];
+
         private static Context? _context = new(new CLIInterpreter());
 
         private static Context CurrentContext
@@ -24,9 +55,11 @@ namespace PanelControllerCLI
             }
         }
 
-        public static void Initialize()
+        public static Context Initialize(CLIInterpreter? interpreter = null)
         {
-            _context ??= new(new CLIInterpreter());
+            _context ??= new(interpreter ?? new CLIInterpreter());
+            _context.Interpreter.Commands.AddRange(_commandDelegates);
+            return _context;
         }
 
         public static string FormatSingleLine(this object? @object) => $"{@object}";
@@ -84,7 +117,7 @@ namespace PanelControllerCLI
                 if (!predicate(list[i]))
                     continue;
 
-                for (int j = i; j < list.Count; j++)
+                for (int j = i + 1; j < list.Count; j++)
                 {
                     if (predicate(list[i]))
                         throw new MoreThanOneMatchException();
