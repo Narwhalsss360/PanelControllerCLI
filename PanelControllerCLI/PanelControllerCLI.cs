@@ -45,7 +45,7 @@ namespace PanelControllerCLI
 
         private static Context? _context = new(new CLIInterpreter());
 
-        private static Context CurrentContext
+        public static Context CurrentContext
         {
             get
             {
@@ -154,9 +154,11 @@ namespace PanelControllerCLI
             return shortName;
         }
 
+        public static string[] ParamsToStrings(object[] @params) => Array.ConvertAll(@params, param => param.ToString() ?? "");
+
         public static IPanelObject Instantiate(this Type type, string[] arguments)
         {
-            if (type.IsAssignableTo(typeof(IPanelObject)))
+            if (!type.Implements<IPanelObject>())
                 throw new NotImplementedException(null, new InvalidProgramException());
 
             ConstructorInfo? ctor = type.GetUserConstructor();
@@ -199,7 +201,7 @@ namespace PanelControllerCLI
                 IPanelObject @object;
                 try
                 {
-                    @object = Instantiate(type, (string[])constructArguments);
+                    @object = Instantiate(type, ParamsToStrings(constructArguments));
                 }
                 catch (NonConstructableException)
                 {
@@ -240,7 +242,7 @@ namespace PanelControllerCLI
                 IChannel channel;
                 try
                 {
-                    if (Instantiate(type, (string[])constructArguments) is not IChannel asChannel)
+                    if (Instantiate(type, ParamsToStrings(constructArguments)) is not IChannel asChannel)
                         throw new NotImplementedException();
                     channel = asChannel;
                 }
@@ -265,7 +267,7 @@ namespace PanelControllerCLI
                 Profile newProfile = new() { Name = name };
                 Main.Profiles.Add(newProfile);
 
-                if (flags?.Contains("") is not null)
+                if (flags?.Contains("--select") ?? false)
                 {
                     CurrentContext.SetNewSelectionStack(
                         Main.Profiles,
@@ -273,6 +275,9 @@ namespace PanelControllerCLI
                         newProfile
                     );
                 }
+
+                if (flags?.Contains("--use") ?? false)
+                    Main.CurrentProfile = newProfile;
             }
 
             [DisplayName("Create-Mapping")]
@@ -338,7 +343,7 @@ namespace PanelControllerCLI
                 try
                 {
                     newMappedObject = new Mapping.MappedObject()
-                    { Object = Instantiate(type, (string[])constructArguments) };
+                    { Object = Instantiate(type, ParamsToStrings(constructArguments)) };   
                 }
                 catch (NonConstructableException)
                 {
