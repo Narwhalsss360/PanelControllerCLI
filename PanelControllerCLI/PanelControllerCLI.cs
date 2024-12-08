@@ -5,19 +5,29 @@ using CLIApplication;
 using PanelController.PanelObjects;
 using System.Reflection;
 using PanelController.PanelObjects.Properties;
-using System;
 
 namespace PanelControllerCLI
 {
-    using Profiling = PanelController.Profiling;
-
     using Controller = PanelController.Controller;
 
     public static class PanelControllerCLI
     {
-        private static readonly Context _context = new(new CLIInterpreter());
+        private static Context? _context = new(new CLIInterpreter());
 
-        private static Context CurrentContext { get => _context; }
+        private static Context CurrentContext
+        {
+            get
+            {
+                if (_context is null)
+                    throw new NotImplementedException();
+                return _context;
+            }
+        }
+
+        public static void Initialize()
+        {
+            _context ??= new(new CLIInterpreter());
+        }
 
         public static string FormatSingleLine(this object? @object) => $"{@object}";
 
@@ -116,14 +126,12 @@ namespace PanelControllerCLI
             if (type.IsAssignableTo(typeof(IPanelObject)))
                 throw new NotImplementedException(null, new InvalidProgramException());
 
-            ConstructorInfo? ctor = null;
-            //ConstructorInfo? ctor = type.GetUserConstructor(); Not Implemented in PanelController
-            throw new NotImplementedException();
+            ConstructorInfo? ctor = type.GetUserConstructor();
 
             if (ctor is null && arguments.Length != 0)
                 throw new NotImplementedException("Please enter no arguments",  new NonConstructableException());
 
-            if (Activator.CreateInstance(type, ctor.GetParameters().ParseArguments(arguments)) is not IPanelObject @object)
+            if (Activator.CreateInstance(type, ctor is null ? [] : ctor.GetParameters().ParseArguments(arguments)) is not IPanelObject @object)
                 throw new NotImplementedException(null, new InvalidProgramException());
             return @object;
         }
@@ -370,8 +378,7 @@ namespace PanelControllerCLI
             {
                 try
                 {
-                    int index;
-                    Profile profile = Main.Profiles.FindOne(profile => profile.Name == name, out index);
+                    Profile profile = Main.Profiles.FindOne(profile => profile.Name == name, out int index);
                     CurrentContext.SetNewSelectionStack(
                         Main.Profiles,
                         Context.SelectionKey(index),
