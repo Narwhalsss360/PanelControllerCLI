@@ -141,15 +141,81 @@ namespace PanelControllerCLI
         public static class Create
         {
             [DisplayName("Create-Generic")]
-            public static void Generic(string[]? flags = null)
+            public static void Generic(string typeName, string[]? flags = null, params object[] constructArguments)
             {
-                throw new NotImplementedException();
+                Type type;
+                try
+                {
+                    if (typeName.FindType() is not Type found)
+                        throw new NotImplementedException();
+                    type = found;
+                }
+                catch (MoreThanOneMatchException)
+                {
+                    throw new NotImplementedException();
+                }
+
+                IPanelObject @object;
+                try
+                {
+                    @object = Instantiate(type, (string[])constructArguments);
+                }
+                catch (NonConstructableException)
+                {
+                    throw new NotImplementedException();
+                }
+                catch (ArgumentException)
+                {
+                    throw new NotImplementedException();
+                }
+
+                Extensions.Objects.Add(@object);
+
+                if (flags?.Contains("--select") ?? false)
+                {
+                    CurrentContext.SetNewSelectionStack(
+                        Extensions.Objects,
+                        Context.SelectionKey(Extensions.Objects.Count),
+                        @object
+                    );
+                }
             }
 
             [DisplayName("Create-Channel")]
-            public static void Channel(string[]? flags = null)
+            public static void Channel(string typeName, string[]? flags = null, params object[] constructArguments)
             {
-                throw new NotImplementedException();
+                Type type;
+                try
+                {
+                    if (typeName.FindType() is not Type found)
+                        throw new NotImplementedException();
+                    type = found;
+                }
+                catch (MoreThanOneMatchException)
+                {
+                    throw new NotImplementedException();
+                }
+
+                IChannel channel;
+                try
+                {
+                    if (Instantiate(type, (string[])constructArguments) is not IChannel asChannel)
+                        throw new NotImplementedException();
+                    channel = asChannel;
+                }
+                catch (NonConstructableException)
+                {
+                    throw new NotImplementedException();
+                }
+                catch (ArgumentException)
+                {
+                    throw new NotImplementedException();
+                }
+
+                if (flags?.Contains("--wait-for-handshake") ?? false)
+                    Main.Handshake(channel);
+                else
+                    Main.HandshakeAsync(channel);
             }
 
             [DisplayName("Create-Profile")]
@@ -488,8 +554,6 @@ namespace PanelControllerCLI
                 {
                     throw new NotImplementedException(null, new MissingSelectionException());
                 }
-
-                throw new NotImplementedException();
             }
 
             [DisplayName("Edit-Property")]
