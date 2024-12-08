@@ -1,8 +1,6 @@
-using System;
-
-namespace PanelControllerCLI;
-
-public class NonConstructableException : Exception
+namespace PanelControllerCLI
 {
-
+    public class NonConstructableException : Exception
+    {
+    }
 }

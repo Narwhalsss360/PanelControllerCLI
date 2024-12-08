@@ -5,6 +5,7 @@ using CLIApplication;
 using PanelController.PanelObjects;
 using System.Reflection;
 using PanelController.PanelObjects.Properties;
+using System;
 
 namespace PanelControllerCLI
 {
@@ -14,8 +15,6 @@ namespace PanelControllerCLI
 
     public static class PanelControllerCLI
     {
-        private static readonly string[] EMPTY_FLAGS = new string[0];
-
         private static readonly Context _context = new(new CLIInterpreter());
 
         private static Context CurrentContext { get => _context; }
@@ -90,7 +89,7 @@ namespace PanelControllerCLI
 
         public static T FindOne<T>(this IList<T> list, Predicate<T> predicate)
         {
-            return FindOne<T>(list, predicate, out int unused);
+            return FindOne<T>(list, predicate, out int _);
         }
 
         public static Type? FindType(this string type)
@@ -156,7 +155,7 @@ namespace PanelControllerCLI
             [DisplayName("Create-Profile")]
             public static void Profile(string name, string[]? flags = null)
             {
-                Profile newProfile = new Profile() { Name = name };
+                Profile newProfile = new() { Name = name };
                 Main.Profiles.Add(newProfile);
 
                 if (flags?.Contains("") is not null)
@@ -356,11 +355,12 @@ namespace PanelControllerCLI
                 }
                 else
                 {
+                    Mapping[] mappings = profile.Mappings;
                     if (!int.TryParse(identifier, out index))
                         throw new NotImplementedException();
-                    if (index < 0 || index >= Extensions.Objects.Count)
+                    if (index < 0 || index >= mappings.Length)
                         throw new NotImplementedException();
-                    mapping = profile.Mappings[index];
+                    mapping = mappings[index];
                 }
 
 
@@ -403,7 +403,7 @@ namespace PanelControllerCLI
                 {
                     if (!int.TryParse(identifier, out index))
                         throw new NotImplementedException();
-                    if (index < 0 || index >= Extensions.Objects.Count)
+                    if (index < 0 || index >= mapping.Objects.Count)
                         throw new NotImplementedException();
                     mapped = mapping.Objects[index];
                 }
@@ -443,7 +443,7 @@ namespace PanelControllerCLI
                 {
                     if (!int.TryParse(identifier, out index))
                         throw new NotImplementedException();
-                    if (index < 0 || index >= Extensions.Objects.Count)
+                    if (index < 0 || index >= Main.PanelsInfo.Count)
                         throw new NotImplementedException();
                     panelInfo = Main.PanelsInfo[index];
                 }
@@ -552,7 +552,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Edit-CollectionOrder")]
-            public static void CollectionOrder()
+            public static void CollectionOrder(string property, string keyA, string keyB)
             {
                 if (CurrentContext.SelectedObject is not IPanelObject @object)
                     throw new NotImplementedException();
@@ -650,50 +650,231 @@ namespace PanelControllerCLI
         public static class Use
         {
             [DisplayName("Use-Profile")]
-            public static void Profile()
+            public static void Profile(string name)
             {
-                throw new NotImplementedException();
+                try
+                {
+                    Main.CurrentProfile = Main.Profiles.FindOne(profile => profile.Name == name);
+                }
+                catch (EmptyCollectionException)
+                {
+                    throw new NotImplementedException();
+                }
+                catch (MoreThanOneMatchException)
+                {
+                    throw new NotImplementedException();
+                }
+                catch (NotFoundException)
+                {
+                    throw new NotImplementedException();
+                }
             }
         }
 
         public static class Delete
         {
             [DisplayName("Delete-Generic")]
-            public static void Generic()
+            public static void Generic(string identifier, string[]? flags = null)
             {
-                throw new NotImplementedException();
-            }
+                int index;
+                IPanelObject @object;
+                if (flags?.Contains("--index") ?? false)
+                {
+                    try
+                    {
+                        @object = Extensions.Objects.FindOne(ext => ext.GetItemName() == identifier, out index);
+                    }
+                    catch (EmptyCollectionException)
+                    {
+                        throw new NotImplementedException();
+                    }
+                    catch (MoreThanOneMatchException)
+                    {
+                        throw new NotImplementedException();
+                    }
+                    catch (NotFoundException)
+                    {
+                        throw new NotImplementedException();
+                    }
+                }
+                else
+                {
+                    if (!int.TryParse(identifier, out index))
+                        throw new NotImplementedException();
+                    if (index < 0 || index >= Extensions.Objects.Count)
+                        throw new NotImplementedException();
+                    @object = Extensions.Objects[index];
+                }
 
-            [DisplayName("Delete-Channel")]
-            public static void Channel()
-            {
-                throw new NotImplementedException();
+                Extensions.Objects.RemoveAt(index);
+                int stepsBack = CurrentContext.StepsBack(@object);
+                while (stepsBack >= 0)
+                    CurrentContext.SelectedBack();
             }
 
             [DisplayName("Delete-Profile")]
-            public static void Profile()
+            public static void Profile(string identifier, string[]? flags = null)
             {
-                throw new NotImplementedException();
+                int index;
+                Profile profile;
+                if (flags?.Contains("--index") ?? false)
+                {
+                    try
+                    {
+                        profile = Main.Profiles.FindOne(profile => profile.Name == identifier, out index);
+                    }
+                    catch (EmptyCollectionException)
+                    {
+                        throw new NotImplementedException();
+                    }
+                    catch (MoreThanOneMatchException)
+                    {
+                        throw new NotImplementedException();
+                    }
+                    catch (NotFoundException)
+                    {
+                        throw new NotImplementedException();
+                    }
+                }
+                else
+                {
+                    if (!int.TryParse(identifier, out index))
+                        throw new NotImplementedException();
+                    if (index < 0 || index >= Main.Profiles.Count)
+                        throw new NotImplementedException();
+                    profile = Main.Profiles[index];
+                }
+
+                if (Main.SelectedProfileIndex == index)
+                    Main.SelectedProfileIndex = -1;
+                Main.Profiles.RemoveAt(index);
+                int stepsBack = CurrentContext.StepsBack(profile);
+                while (stepsBack >= 0)
+                    CurrentContext.SelectedBack();
             }
 
             [DisplayName("Delete-Mapping")]
-            public static void Mapping()
+            public static void Mapping(string identifier, string[]? flags = null)
             {
-                throw new NotImplementedException();
+                if (GetContextualProfile() is not Profile profile)
+                    throw new NotImplementedException(null, new MissingSelectionException());
+
+                Mapping mapping;
+                if (flags?.Contains("--index") ?? false)
+                {
+                    try
+                    {
+                        mapping = profile.Mappings.FindOne(mapping => mapping.Name == identifier);
+                    }
+                    catch (EmptyCollectionException)
+                    {
+                        throw new NotImplementedException();
+                    }
+                    catch (MoreThanOneMatchException)
+                    {
+                        throw new NotImplementedException();
+                    }
+                    catch (NotFoundException)
+                    {
+                        throw new NotImplementedException();
+                    }
+                }
+                else
+                {
+                    Mapping[] mappings = profile.Mappings;
+                    if (!int.TryParse(identifier, out int index))
+                        throw new NotImplementedException();
+                    if (index < 0 || index >= mappings.Length)
+                        throw new NotImplementedException();
+                    mapping = mappings[index];
+                }
+
+                profile.RemoveMapping(mapping);
+                int stepsBack = CurrentContext.StepsBack(mapping);
+                while (stepsBack >= 0)
+                    CurrentContext.SelectedBack();
             }
 
             [DisplayName("Delete-MappedObject")]
-            public static void MappedObject()
+            public static void MappedObject(string identifier, string[]? flags = null)
             {
-                throw new NotImplementedException();
+                if (CurrentContext.SelectedObject is not Mapping mapping)
+                    throw new NotImplementedException(null, new MissingSelectionException());
+
+                int index;
+                Mapping.MappedObject mapped;
+                if (flags?.Contains("--index") ?? false)
+                {
+                    try
+                    {
+                        mapped = mapping.Objects.FindOne(mapped => mapped.Object.GetItemName() == identifier, out index);
+                    }
+                    catch (EmptyCollectionException)
+                    {
+                        throw new NotImplementedException();
+                    }
+                    catch (MoreThanOneMatchException)
+                    {
+                        throw new NotImplementedException();
+                    }
+                    catch (NotFoundException)
+                    {
+                        throw new NotImplementedException();
+                    }
+                }
+                else
+                {
+                    if (!int.TryParse(identifier, out index))
+                        throw new NotImplementedException();
+                    if (index < 0 || index >= mapping.Objects.Count)
+                        throw new NotImplementedException();
+                    mapped = mapping.Objects[index];
+                }
+
+                mapping.Objects.RemoveAt(index);
+                int stepsBack = CurrentContext.StepsBack(mapping);
+                while (stepsBack >= 0)
+                    CurrentContext.SelectedBack();
             }
 
             [DisplayName("Delete-PanelInfo")]
-            public static void PanelInfo()
+            public static void PanelInfo(string identifier, string[]? flags = null)
             {
-                throw new NotImplementedException();
-            }
+                int index;
+                PanelInfo info;
+                if (flags?.Contains("--index") ?? false)
+                {
+                    try
+                    {
+                        info = Main.PanelsInfo.FindOne(info => info.Name == identifier, out index);
+                    }
+                    catch (EmptyCollectionException)
+                    {
+                        throw new NotImplementedException();
+                    }
+                    catch (MoreThanOneMatchException)
+                    {
+                        throw new NotImplementedException();
+                    }
+                    catch (NotFoundException)
+                    {
+                        throw new NotImplementedException();
+                    }
+                }
+                else
+                {
+                    if (!int.TryParse(identifier, out index))
+                        throw new NotImplementedException();
+                    if (index < 0 || index >= Main.PanelsInfo.Count)
+                        throw new NotImplementedException();
+                    info = Main.PanelsInfo[index];
+                }
 
+                Main.PanelsInfo.RemoveAt(index);
+                int stepsBack = CurrentContext.StepsBack(info);
+                while (stepsBack >= 0)
+                    CurrentContext.SelectedBack();
+            }
         }
     }
 }

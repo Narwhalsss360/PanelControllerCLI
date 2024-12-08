@@ -1,8 +1,7 @@
-using System;
 
-namespace PanelControllerCLI;
-
-public class MoreThanOneMatchException : Exception
+namespace PanelControllerCLI
 {
-
+    public class MoreThanOneMatchException : Exception
+    {
+    }
 }

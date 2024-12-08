@@ -1,6 +1,6 @@
-namespace PanelControllerCLI;
-
-public class NotFoundException : Exception
+namespace PanelControllerCLI
 {
-
+    public class NotFoundException : Exception
+    {
+    }
 }

@@ -1,27 +1,20 @@
 ﻿using CLIApplication;
 using PanelController.Profiling;
 using System.Collections;
-using System.Diagnostics.Contracts;
+using System.Linq;
 
 namespace PanelControllerCLI
 {
-    public class Context
+    public class Context(CLIInterpreter interpreter)
     {
-        private class ContainerKey
+        private class ContainerKey(object key)
         {
-            public object key = null;
-
-            public ContainerKey(object key)
-            {
-                if (key is null)
-                    throw new InvalidProgramException("ContainterKey.ContainerKey(object?): ContainerKey.key cannot be null.");
-                this.key = key;
-            }
+            public readonly object key = key;
         }
 
-        private CLIInterpreter _interpreter;
+        private readonly CLIInterpreter _interpreter = interpreter;
 
-        private Stack _selectionStack = new();
+        private readonly Stack _selectionStack = new();
 
         public CLIInterpreter Interpreter { get => _interpreter; }
 
@@ -78,7 +71,7 @@ namespace PanelControllerCLI
         public object? Highest(Predicate<object?> predicate)
         {
             object? containingObject = null;
-            Stack repush = new Stack();
+            Stack repush = new();
             for (int i = _selectionStack.Count - 1; i >= 0; i--)
             {
                 repush.Push(_selectionStack.Pop());
@@ -95,11 +88,6 @@ namespace PanelControllerCLI
         }
 
         private static bool IsContainerKey(object? @object) => @object as ContainerKey is not null;
-
-        public Context(CLIInterpreter interpreter)
-        {
-            _interpreter = interpreter;
-        }
 
         public void SetNewSelectionStack(params object[] objects)
         {
@@ -133,7 +121,28 @@ namespace PanelControllerCLI
             return _selectionStack.Pop();
         }
 
-        public static object SelectionKey<T>(T key) => new ContainerKey(key);
+        public int StepsBack(object @object)
+        {
+            int stepsBack = -1;
+            Stack repush = new();
+            for (int i = _selectionStack.Count - 1; i >= 0; i--)
+            {
+                repush.Push(_selectionStack.Pop());
+                stepsBack++;
+                if (repush.Peek() == @object)
+                    break;
+            }
+            while (repush.Count > 0)
+                _selectionStack.Push(repush.Pop());
+            return stepsBack;
+        }
+
+        public static object SelectionKey<T>(T key)
+        {
+            if (key is null)
+                throw new InvalidProgramException("ContainterKey.ContainerKey(object?): ContainerKey.key cannot be null.");
+            return new ContainerKey(key);
+        }
 
         public static bool IsCollection(object? @object) => (@object as IList is not null || @object as IDictionary is not null) && !IsContainerKey(@object);
 

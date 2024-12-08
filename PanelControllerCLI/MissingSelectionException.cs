@@ -1,7 +1,6 @@
-using System;
-
-namespace PanelControllerCLI;
-
-public class MissingSelectionException : Exception
+namespace PanelControllerCLI
 {
+    public class MissingSelectionException : Exception
+    {
+    }
 }
