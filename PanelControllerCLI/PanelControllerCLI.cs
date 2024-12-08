@@ -5,6 +5,9 @@ using CLIApplication;
 using PanelController.PanelObjects;
 using System.Reflection;
 using PanelController.PanelObjects.Properties;
+using NStreamCom;
+using System.Data;
+using System.Text;
 
 namespace PanelControllerCLI
 {
@@ -40,7 +43,12 @@ namespace PanelControllerCLI
             new(Delete.Profile),
             new(Delete.Mapping),
             new(Delete.MappedObject),
-            new(Delete.PanelInfo)
+            new(Delete.PanelInfo),
+            new(VirtualPanel.Initialize),
+            new(VirtualPanel.SendStroke),
+            new(VirtualPanel.SetAnalogValue),
+            new(VirtualPanel.Display),
+            new(VirtualPanel.Deinitialize)
         ];
 
         private static Context? _context = new(new CLIInterpreter());
@@ -59,6 +67,7 @@ namespace PanelControllerCLI
         {
             _context ??= new(interpreter ?? new CLIInterpreter());
             _context.Interpreter.Commands.AddRange(_commandDelegates);
+            Extensions.Load<OutputToConsole>();
             return _context;
         }
 
@@ -980,18 +989,183 @@ namespace PanelControllerCLI
                 }
 
                 Main.PanelsInfo.RemoveAt(index);
-                {
-                    if (!int.TryParse(identifier, out index))
-                        throw new NotImplementedException();
-                    if (index < 0 || index >= Main.PanelsInfo.Count)
-                        throw new NotImplementedException();
-                    info = Main.PanelsInfo[index];
-                }
-
-                Main.PanelsInfo.RemoveAt(index);
                 int stepsBack = CurrentContext.StepsBack(info);
                 while (stepsBack >= 0)
                     CurrentContext.SelectedBack();
+            }
+        }
+    
+        public static class VirtualPanel
+        {
+            private static readonly byte[] VirtualPanelGuid = [228, 67, 132, 24, 63, 182, 20, 64, 167, 143, 248, 141, 250, 253, 118, 38];
+
+            private class VirtualChannel : IChannel
+            {
+                public PanelInfo PanelInfo;
+
+                private bool _opened = false;
+
+                private PacketCollector _collector = new();
+
+                public VirtualChannel(PanelInfo info)
+                {
+                    PanelInfo = info;
+                    _collector.PacketsReady += PacketsReady;
+                }
+
+                public bool IsOpen => _opened;
+
+                public event EventHandler<byte[]>? BytesReceived;
+
+                public void Close()
+                {
+                    _opened = false;
+                }
+
+                public object? Open()
+                {
+                    _opened = true;
+                    _collector.Discard();
+                    return null;
+                }
+
+                public void SendInterfaceUpdate(InterfaceTypes interfaceType, uint id, object? state = null)
+                {
+                    ushort messageID = 0xFFFF;
+                    byte[] data;
+                    switch (interfaceType)
+                    {
+                        case InterfaceTypes.Digital:
+                            if (state is not bool activated)
+                                throw new NotImplementedException();
+                            messageID = (int)ConnectedPanel.ReceiveIDs.DigitalStateUpdate;
+                            data = new byte[5];
+                            BitConverter.GetBytes(id).CopyTo(data, 0);
+                            data[4] = (byte)(activated ? 1 : 0);
+                            break;
+                        case InterfaceTypes.Analog:
+                            if (state is not string value)
+                                throw new NotImplementedException();
+                            messageID = (int)ConnectedPanel.ReceiveIDs.AnalogStateUpdate;
+                            data = Encoding.UTF8.GetBytes(value);
+                            break;
+                        default:
+                            data = Array.Empty<byte>();
+                            break;
+                    }
+                    if (messageID == 0xFFFF)
+                        return;
+                    data = new Message(messageID, data).GetPackets((ushort)data.Length)[0].GetStreamBytes();
+                    BytesReceived?.Invoke(this, data);
+                }
+
+                private void SendHandshake()
+                {
+                    byte[] data = new byte[28];
+                    PanelInfo.PanelGuid.ToByteArray().CopyTo(data, 0);
+                    BitConverter.GetBytes(PanelInfo.DigitalCount).CopyTo(data, 16);
+                    BitConverter.GetBytes(PanelInfo.AnalogCount).CopyTo(data, 20);
+                    BitConverter.GetBytes(PanelInfo.DisplayCount).CopyTo(data, 24);
+                    BytesReceived?.Invoke(this, data);
+                }
+
+                private void PacketsReady(object sender, PacketsReadyEventArgs e)
+                {
+                    Message message = new(e.Packets);
+                    switch ((ConnectedPanel.ReceiveIDs)message.ID)
+                    {
+                        case ConnectedPanel.ReceiveIDs.Handshake:
+                            SendHandshake();
+                            break;
+                        default:
+                            break;
+                    }
+                }
+
+                private void VirtualPanelReceive(byte[] data)
+                {
+                    _collector.Collect(data);
+                }
+
+                public object? Send(byte[] data)
+                {
+                    VirtualPanelReceive(data);
+                    return null;
+                }
+            }
+
+            private static VirtualChannel? _channel = null;
+
+            [DisplayName("Virtual-Initialize")]
+            public static void Initialize(string name, uint digitalCount, uint analogCount, uint displayCount)
+            {
+                Deinitialize();
+                _channel = new(
+                    new()
+                    {
+                        DigitalCount = digitalCount,
+                        AnalogCount = analogCount,
+                        DisplayCount = displayCount,
+                        PanelGuid = new(VirtualPanelGuid)
+                    }
+                );
+
+                Main.Handshake(_channel);
+                if (Main.ConnectedPanels.Find(connected => connected.PanelGuid == _channel.PanelInfo.PanelGuid) is not ConnectedPanel connected)
+                    throw new NotImplementedException();
+                int index = Main.PanelsInfo.IndexOf(_channel.PanelInfo);
+                Main.PanelsInfo[index].Name = name;
+            }
+
+            [DisplayName("Virtual-SendStroke")]
+            public static void SendStroke(uint id)
+            {
+                if (_channel is null)
+                    throw new NotImplementedException();
+                if (_channel.PanelInfo.DigitalCount <= id)
+                    throw new NotImplementedException();
+                _channel.SendInterfaceUpdate(InterfaceTypes.Digital, id, true);
+                _channel.SendInterfaceUpdate(InterfaceTypes.Digital, id, false);
+            }
+
+            [DisplayName("Virtual-Set")]
+            public static void SetAnalogValue(uint id, string value)
+            {
+                if (_channel is null)
+                    throw new NotImplementedException();
+                if (_channel.PanelInfo.DigitalCount <= id)
+                    throw new NotImplementedException();
+                _channel.SendInterfaceUpdate(InterfaceTypes.Analog, id, value);
+            }
+
+            [DisplayName("Virtual-Display")]
+            public static void Display(uint id)
+            {
+                if (_channel is null)
+                    throw new NotImplementedException();
+                if (_channel.PanelInfo.DigitalCount <= id)
+                    throw new NotImplementedException();
+                throw new NotImplementedException();
+            }
+
+            [DisplayName("Virtual-Deinitialize")]
+            public static void Deinitialize()
+            {
+                if (_channel is not null)
+                {
+                    if (Main.ConnectedPanels.Find(connected => connected.Channel == _channel) is ConnectedPanel connected)
+                    {
+                        Main.ConnectedPanels.Remove(connected);
+                        _channel.Close();
+                    }
+
+                    if (Main.PanelsInfo.Find(info => info.PanelGuid == _channel.PanelInfo.PanelGuid) is PanelInfo info)
+                    {
+                        Main.PanelsInfo.Remove(info);
+                    }
+
+                    _channel = null;
+                }
             }
         }
     }
