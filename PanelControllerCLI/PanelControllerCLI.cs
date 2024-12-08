@@ -373,6 +373,14 @@ namespace PanelControllerCLI
                 int index;
                 if (flags?.Contains("--index") ?? false)
                 {
+                    if (!int.TryParse(identifier, out index))
+                        throw new NotImplementedException();
+                    if (index < 0 || index >= Extensions.Objects.Count)
+                        throw new NotImplementedException();
+                    generic = Extensions.Objects[index];
+                }
+                else
+                {
                     try
                     {
                         generic = Extensions.Objects.FindOne(ext => ext.GetItemName() == identifier, out index);
@@ -389,14 +397,6 @@ namespace PanelControllerCLI
                     {
                         throw new NotImplementedException();
                     }
-                }
-                else
-                {
-                    if (!int.TryParse(identifier, out index))
-                        throw new NotImplementedException();
-                    if (index < 0 || index >= Extensions.Objects.Count)
-                        throw new NotImplementedException();
-                    generic = Extensions.Objects[index];
                 }
 
                 CurrentContext.SetNewSelectionStack(
@@ -442,6 +442,15 @@ namespace PanelControllerCLI
                 int index;
                 if (flags?.Contains("--index") ?? false)
                 {
+                    Mapping[] mappings = profile.Mappings;
+                    if (!int.TryParse(identifier, out index))
+                        throw new NotImplementedException();
+                    if (index < 0 || index >= mappings.Length)
+                        throw new NotImplementedException();
+                    mapping = mappings[index];
+                }
+                else
+                {
                     try
                     {
                         mapping = profile.Mappings.FindOne(mapping => mapping.Name == identifier, out index);
@@ -458,15 +467,6 @@ namespace PanelControllerCLI
                     {
                         throw new NotImplementedException();
                     }
-                }
-                else
-                {
-                    Mapping[] mappings = profile.Mappings;
-                    if (!int.TryParse(identifier, out index))
-                        throw new NotImplementedException();
-                    if (index < 0 || index >= mappings.Length)
-                        throw new NotImplementedException();
-                    mapping = mappings[index];
                 }
 
 
@@ -488,6 +488,14 @@ namespace PanelControllerCLI
                 int index;
                 if (flags?.Contains("--index") ?? false)
                 {
+                    if (!int.TryParse(identifier, out index))
+                        throw new NotImplementedException();
+                    if (index < 0 || index >= mapping.Objects.Count)
+                        throw new NotImplementedException();
+                    mapped = mapping.Objects[index];
+                }
+                else
+                {
                     try
                     {
                         mapped = mapping.Objects.FindOne(mapping => mapping.Object.GetItemName() == identifier, out index);
@@ -505,14 +513,6 @@ namespace PanelControllerCLI
                         throw new NotImplementedException();
                     }
                 }
-                else
-                {
-                    if (!int.TryParse(identifier, out index))
-                        throw new NotImplementedException();
-                    if (index < 0 || index >= mapping.Objects.Count)
-                        throw new NotImplementedException();
-                    mapped = mapping.Objects[index];
-                }
 
                 CurrentContext.SelectedInnerCollectionAndItem(
                     mapping.Objects,
@@ -527,6 +527,14 @@ namespace PanelControllerCLI
                 PanelInfo panelInfo;
                 int index;
                 if (flags?.Contains("--index") ?? false)
+                {
+                    if (!int.TryParse(identifier, out index))
+                        throw new NotImplementedException();
+                    if (index < 0 || index >= Main.PanelsInfo.Count)
+                        throw new NotImplementedException();
+                    panelInfo = Main.PanelsInfo[index];
+                }
+                else
                 {
                     try
                     {
@@ -544,14 +552,6 @@ namespace PanelControllerCLI
                     {
                         throw new NotImplementedException();
                     }
-                }
-                else
-                {
-                    if (!int.TryParse(identifier, out index))
-                        throw new NotImplementedException();
-                    if (index < 0 || index >= Main.PanelsInfo.Count)
-                        throw new NotImplementedException();
-                    panelInfo = Main.PanelsInfo[index];
                 }
 
                 CurrentContext.SetNewSelectionStack(
@@ -784,6 +784,14 @@ namespace PanelControllerCLI
                 IPanelObject @object;
                 if (flags?.Contains("--index") ?? false)
                 {
+                    if (!int.TryParse(identifier, out index))
+                        throw new NotImplementedException();
+                    if (index < 0 || index >= Extensions.Objects.Count)
+                        throw new NotImplementedException();
+                    @object = Extensions.Objects[index];
+                }
+                else
+                {
                     try
                     {
                         @object = Extensions.Objects.FindOne(ext => ext.GetItemName() == identifier, out index);
@@ -801,14 +809,6 @@ namespace PanelControllerCLI
                         throw new NotImplementedException();
                     }
                 }
-                else
-                {
-                    if (!int.TryParse(identifier, out index))
-                        throw new NotImplementedException();
-                    if (index < 0 || index >= Extensions.Objects.Count)
-                        throw new NotImplementedException();
-                    @object = Extensions.Objects[index];
-                }
 
                 Extensions.Objects.RemoveAt(index);
                 int stepsBack = CurrentContext.StepsBack(@object);
@@ -822,6 +822,14 @@ namespace PanelControllerCLI
                 int index;
                 Profile profile;
                 if (flags?.Contains("--index") ?? false)
+                {
+                    if (!int.TryParse(identifier, out index))
+                        throw new NotImplementedException();
+                    if (index < 0 || index >= Main.Profiles.Count)
+                        throw new NotImplementedException();
+                    profile = Main.Profiles[index];
+                }
+                else
                 {
                     try
                     {
@@ -839,14 +847,6 @@ namespace PanelControllerCLI
                     {
                         throw new NotImplementedException();
                     }
-                }
-                else
-                {
-                    if (!int.TryParse(identifier, out index))
-                        throw new NotImplementedException();
-                    if (index < 0 || index >= Main.Profiles.Count)
-                        throw new NotImplementedException();
-                    profile = Main.Profiles[index];
                 }
 
                 if (Main.SelectedProfileIndex == index)
@@ -866,6 +866,15 @@ namespace PanelControllerCLI
                 Mapping mapping;
                 if (flags?.Contains("--index") ?? false)
                 {
+                    Mapping[] mappings = profile.Mappings;
+                    if (!int.TryParse(identifier, out int index))
+                        throw new NotImplementedException();
+                    if (index < 0 || index >= mappings.Length)
+                        throw new NotImplementedException();
+                    mapping = mappings[index];
+                }
+                else
+                {
                     try
                     {
                         mapping = profile.Mappings.FindOne(mapping => mapping.Name == identifier);
@@ -882,15 +891,6 @@ namespace PanelControllerCLI
                     {
                         throw new NotImplementedException();
                     }
-                }
-                else
-                {
-                    Mapping[] mappings = profile.Mappings;
-                    if (!int.TryParse(identifier, out int index))
-                        throw new NotImplementedException();
-                    if (index < 0 || index >= mappings.Length)
-                        throw new NotImplementedException();
-                    mapping = mappings[index];
                 }
 
                 profile.RemoveMapping(mapping);
@@ -909,6 +909,14 @@ namespace PanelControllerCLI
                 Mapping.MappedObject mapped;
                 if (flags?.Contains("--index") ?? false)
                 {
+                    if (!int.TryParse(identifier, out index))
+                        throw new NotImplementedException();
+                    if (index < 0 || index >= mapping.Objects.Count)
+                        throw new NotImplementedException();
+                    mapped = mapping.Objects[index];
+                }
+                else
+                {
                     try
                     {
                         mapped = mapping.Objects.FindOne(mapped => mapped.Object.GetItemName() == identifier, out index);
@@ -926,14 +934,6 @@ namespace PanelControllerCLI
                         throw new NotImplementedException();
                     }
                 }
-                else
-                {
-                    if (!int.TryParse(identifier, out index))
-                        throw new NotImplementedException();
-                    if (index < 0 || index >= mapping.Objects.Count)
-                        throw new NotImplementedException();
-                    mapped = mapping.Objects[index];
-                }
 
                 mapping.Objects.RemoveAt(index);
                 int stepsBack = CurrentContext.StepsBack(mapping);
@@ -947,6 +947,14 @@ namespace PanelControllerCLI
                 int index;
                 PanelInfo info;
                 if (flags?.Contains("--index") ?? false)
+                {
+                    if (!int.TryParse(identifier, out index))
+                        throw new NotImplementedException();
+                    if (index < 0 || index >= Main.PanelsInfo.Count)
+                        throw new NotImplementedException();
+                    info = Main.PanelsInfo[index];
+                }
+                else
                 {
                     try
                     {
@@ -965,7 +973,8 @@ namespace PanelControllerCLI
                         throw new NotImplementedException();
                     }
                 }
-                else
+
+                Main.PanelsInfo.RemoveAt(index);
                 {
                     if (!int.TryParse(identifier, out index))
                         throw new NotImplementedException();
