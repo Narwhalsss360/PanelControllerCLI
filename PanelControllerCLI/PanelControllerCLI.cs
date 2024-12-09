@@ -73,7 +73,35 @@ namespace PanelControllerCLI
             return _context;
         }
 
-        public static string FormatSingleLine(this object? @object) => $"{@object}";
+        public static List<Func<object, Func<string>?>> SingleLineCustomTypeFormatters = new()
+        {
+            { obj => ReferenceEquals(obj, Main.Profiles) ? () => "Profiles List" : null },
+            { obj => ReferenceEquals(obj, Main.PanelsInfo) ? () => "Panels List" : null },
+            { obj => ReferenceEquals(obj, Extensions.Objects) ? () => "Generics List" : null },
+            { obj => obj.GetType().IsAssignableTo(typeof(IList<Mapping.MappedObject>)) ? () => "MappedObjects List" : null },
+            { obj => obj is Mapping.MappedObject mapped ? (() => $"{mapped.Object.GetType().Name} {mapped.Object.GetItemName()}") : null },
+            { obj => obj is Profile profile ? (Main.CurrentProfile == profile ? () => $">{profile.Name}<" : () => profile.Name ) : null }
+        };
+
+        public static string FormatSingleLine(this object? @object)
+        {
+            if (@object is null)
+                return "null";
+
+            Func<string>? generate = null;
+            foreach (Func<object, Func<string>?> formatter in SingleLineCustomTypeFormatters)
+            {
+                if (formatter(@object) is Func<string> generator)
+                {
+                    generate = generator;
+                    break;
+                }           
+            }
+
+            if (generate is null)
+                return $"{@object.GetType().Name} {@object}";
+            return generate();
+        }
 
         public static string FormatMultiLine(this object? @object) => $"{@object}";
 
@@ -838,12 +866,12 @@ namespace PanelControllerCLI
 
                     if (Context.IsContainerKey(current))
                     {
-                        Out.Write(FormatSingleLine(Context.GetContainerKey(current ?? "")) + ": ");
+                        Out.Write($"[{FormatSingleLine(Context.GetContainerKey(current ?? ""))}]: ");
                         i--;
                         current = currentSelections[i];
                     }
 
-                    Out.WriteLine(current);
+                    Out.WriteLine(FormatSingleLine(current));
                     depth++;
                 }
             }
