@@ -223,7 +223,7 @@ namespace PanelControllerCLI
                 throw new UserEntryParseException($"An error occured parsing constructor arguments for {type.Name}", false, exc);
             }
 
-            if (Activator.CreateInstance(type, parsed) is not IPanelObject @object)
+            if (CurrentContext.Construct(type, parsed) is not IPanelObject @object)
                 throw new UnsupportedTypeException($"The type {type.Name} did not construct to a IPanelObject", new InvalidProgramException("'type' should be verified to implement IPanelObject"));
             return @object;
         }

@@ -1,8 +1,6 @@
 ﻿using CLIApplication;
-using PanelController.Profiling;
+using PanelController.PanelObjects;
 using System.Collections;
-using System.Diagnostics.Contracts;
-using System.Linq;
 
 namespace PanelControllerCLI
 {
@@ -18,6 +16,8 @@ namespace PanelControllerCLI
         private readonly Stack _selectionStack = new();
 
         public CLIInterpreter Interpreter { get => _interpreter; }
+
+        private List<Func<Type, Func<object?[], IPanelObject?>?>> _constructFunctionGenerators = new();
 
         public object? SelectedObject
         {
@@ -69,6 +69,26 @@ namespace PanelControllerCLI
             get => (Highest(IsContainerKey) as ContainerKey)?.key;
         }
 
+        public static bool IsContainerKey(object? @object) => @object as ContainerKey is not null;
+
+        public static object GetContainerKey(object key)
+        {
+            if (key is not ContainerKey containerKey)
+                throw new NotImplementedException();
+            return containerKey.key;
+        }
+
+        public static object SelectionKey<T>(T key)
+        {
+            if (key is null)
+                throw new InvalidProgramException("ContainterKey.ContainerKey(object?): ContainerKey.key cannot be null.");
+            return new ContainerKey(key);
+        }
+
+        public static bool IsCollection(object? @object) => (@object as IList is not null || @object as IDictionary is not null) && !IsContainerKey(@object);
+
+        public static bool IsObject(object? @object) => !IsCollection(@object) && !IsContainerKey(@object);
+
         public object? Highest(Predicate<object?> predicate)
         {
             object? containingObject = null;
@@ -86,15 +106,6 @@ namespace PanelControllerCLI
             while (repush.Count > 0)
                 _selectionStack.Push(repush.Pop());
             return containingObject;
-        }
-
-        public static bool IsContainerKey(object? @object) => @object as ContainerKey is not null;
-
-        public static object GetContainerKey(object key)
-        {
-            if (key is not ContainerKey containerKey)
-                throw new NotImplementedException();
-            return containerKey.key;
         }
 
         public object?[] CurrentSelectionStack() => _selectionStack.ToArray();
@@ -149,16 +160,18 @@ namespace PanelControllerCLI
                 _selectionStack.Push(repush.Pop());
             return stepsBack;
         }
+    
+        public void AddConstructGenerator(Func<Type, Func<object?[], IPanelObject?>?> constructGenerator) => _constructFunctionGenerators.Add(constructGenerator);
 
-        public static object SelectionKey<T>(T key)
+        public IPanelObject? Construct(Type type, object?[] arguments)
         {
-            if (key is null)
-                throw new InvalidProgramException("ContainterKey.ContainerKey(object?): ContainerKey.key cannot be null.");
-            return new ContainerKey(key);
+            foreach (Func<Type, Func<object?[], IPanelObject?>?> constructGenerator in _constructFunctionGenerators)
+            {
+                if (constructGenerator?.Invoke(type) is not Func<object?[], IPanelObject?> generate)
+                    continue;
+                return generate(arguments);
+            }
+            return Activator.CreateInstance(type, arguments) as IPanelObject;
         }
-
-        public static bool IsCollection(object? @object) => (@object as IList is not null || @object as IDictionary is not null) && !IsContainerKey(@object);
-
-        public static bool IsObject(object? @object) => !IsCollection(@object) && !IsContainerKey(@object);
     }
 }
