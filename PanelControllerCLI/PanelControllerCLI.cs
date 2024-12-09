@@ -63,7 +63,7 @@ namespace PanelControllerCLI
             new(Help.ExtensionHelp)
         ];
 
-        private static Context? _context = new(new CLIInterpreter());
+        private static Context? _context = null;
 
         public static Context CurrentContext
         {
