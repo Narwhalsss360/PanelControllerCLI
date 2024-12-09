@@ -10,7 +10,6 @@ using System.Text;
 using PanelControllerCLI.CLIFatalExceptions;
 using PanelControllerCLI.UserErrorExceptions;
 using PanelControllerCLI.DataErrorExceptions;
-using System.Drawing;
 
 namespace PanelControllerCLI
 {
@@ -250,6 +249,7 @@ namespace PanelControllerCLI
         public static class Create
         {
             [DisplayName("Create-Generic")]
+            [Description("Create a generic IPanelObject object, and supply it's arguments. IPanelObjects are general extensions that do not fit into any pre-defined categories. Use --select flag to select.")]
             public static void Generic(string typeName, string[]? flags = null, params object[] constructArguments)
             {
                 if (typeName.FindType() is not Type type)
@@ -268,6 +268,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Create-Channel")]
+            [Description("Create (open) a channel, and supply it's arguments. Use --wait-for-handshake to make terminal wait.")]
             public static void Channel(string typeName, string[]? flags = null, params object[] constructArguments)
             {
                 if (typeName.FindType() is not Type type)
@@ -284,6 +285,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Create-Profile")]
+            [Description("Create a profile with specified name. Use --select flag to select.")]
             public static void Profile(string name, string[]? flags = null)
             {
                 Profile newProfile = new() { Name = name };
@@ -303,6 +305,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Create-Mapping")]
+            [Description("Create a mapping in the *current contextual profile*. Use --select flag to select.")]
             public static void Mapping(string name, string panel, InterfaceTypes interfaceType, uint interfaceID, string[]? flags = null)
             {
                 if (GetContextualProfile() is not Profile profile)
@@ -331,6 +334,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Create-MappedObject")]
+            [Description("Create a MappedObject in the currently *selected* Mapping, and supply it's arguments. Use --select flag to select.")]
             public static void MappedObject(string typeName, string[]? flags = null, params object[] constructArguments)
             {
                 if (CurrentContext.SelectedObject is not Mapping mapping)
@@ -351,6 +355,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Create-PanelInfo")]
+            [Description("Not implemented...")]
             public static void PanelInfo(string[]? flags = null)
             {
                 throw new NotImplementedException();
@@ -360,6 +365,7 @@ namespace PanelControllerCLI
         public static class Select
         {
             [DisplayName("Select-Generic")]
+            [Description("Select generic by name/index (IPanelObject) object. Use --index flag to identify by index.")]
             public static void Generic(string identifier, string[]? flags = null)
             {
                 IPanelObject generic;
@@ -396,6 +402,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Select-Profile")]
+            [Description("Select profile by name.")]
             public static void Profile(string name)
             {
                 try
@@ -418,6 +425,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Select-Mapping")]
+            [Description("Select Mapping by name/index in *current contextual profile*. Use --index flag to identify by index.")]
             public static void Mapping(string identifier, string[]? flags = null)
             {
                 if (GetContextualProfile() is not Profile profile)
@@ -459,6 +467,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Select-MappedObject")]
+            [Description("Select MappedObject by name/index in current *selected* Mapping. Use --index flag to identify by index.")]
             public static void MappedObject(string identifier, string[]? flags = null)
             {
                 if (CurrentContext.SelectedObject is not Mapping mapping)
@@ -498,6 +507,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Select-Panel")]
+            [Description("Select Panel by name/index. Use --index flag to identify by index.")]
             public static void Panel(string identifier, string[]? flags = null)
             {
                 PanelInfo panelInfo;
@@ -534,12 +544,14 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Select-Back")]
+            [Description("Deselect currently selected, and select the containing object/collection.")]
             public static void Back() => CurrentContext.SelectedBack();
         }
 
         public static class Edit
         {
             [DisplayName("Edit-Name")]
+            [Description("Edit name of currently *selected* object.")]
             public static void Name(string name)
             {
                 if (CurrentContext.SelectedObject is null)
@@ -575,6 +587,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Edit-Property")]
+            [Description("Edit a property of currently *selected* IPanelObject.")]
             public static void Property(string property, string value)
             {
                 IPanelObject @object = RequireSelectionAsPanelObject();
@@ -602,6 +615,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Edit-Collection")]
+            [Description("Not implemented")]
             public static void Collection(string property, string key, string value)
             {
                 IPanelObject @object = RequireSelectionAsPanelObject();
@@ -623,6 +637,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Edit-CollectionOrder")]
+            [Description("Not implemented")]
             public static void CollectionOrder(string property, string keyA, string keyB)
             {
                 IPanelObject @object = RequireSelectionAsPanelObject();
@@ -647,6 +662,7 @@ namespace PanelControllerCLI
         public static class Show
         {
             [DisplayName("Show-Extensions")]
+            [Description("Show all extension types.")]
             public static void Extensions()
             {
                 CurrentContext.Interpreter.Out.WriteLine("Extensions:");
@@ -661,6 +677,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Show-Generics")]
+            [Description("Show all enable/created generic IPanelObjects.")]
             public static void Generic()
             {
                 if (Controller.Extensions.Objects.Count == 0)
@@ -672,6 +689,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Show-Channels")]
+            [Description("Show all open channels.")]
             public static void Channel()
             {
                 if (Main.ConnectedPanels.Count == 0)
@@ -682,6 +700,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Show-Profiles")]
+            [Description("Show all open profiles.")]
             public static void Profile()
             {
                 if (Main.Profiles.Count == 0)
@@ -693,6 +712,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Show-Mappings")]
+            [Description("Show all mappings of *current contextual profile*.")]
             public static void Mapping()
             {
                 if (GetContextualProfile() is not Profile profile)
@@ -707,6 +727,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Show-MappedObjects")]
+            [Description("Show MappedObject of currently *selected* Mapping.")]
             public static void MappedObject()
             {
                 if (CurrentContext.SelectedObject is not Mapping mapping)
@@ -721,6 +742,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Show-PanelInfos")]
+            [Description("Show all information of all known panels.")]
             public static void PanelInfo()
             {
                 if (Main.PanelsInfo.Count == 0)
@@ -732,6 +754,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Show-Properties")]
+            [Description("Show properties of currently *selected* IPanelObject.")]
             public static void Properties()
             {
                 IPanelObject @object = RequireSelectionAsPanelObject();
@@ -746,6 +769,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Show-Selected")]
+            [Description("Show what is currently selected.")]
             public static void Selected()
             {
                 TextWriter Out = CurrentContext.Interpreter.Out;
@@ -788,6 +812,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Show-Logs")]
+            [Description("Show PanelController logs. Supply a format with keys: /T:Time /L:Level /F:Sender /M:Message")]
             public static void Logs(Logger.Levels maximumLevel = Logger.Levels.Debug, string format = "/T [/L][/F] /M")
             {
                 foreach (Logger.HistoricalLog log in Logger.Logs)
@@ -799,6 +824,7 @@ namespace PanelControllerCLI
         public static class Use
         {
             [DisplayName("Use-Profile")]
+            [Description("Use the profile, but not select it.")]
             public static void Profile(string name)
             {
                 try
@@ -814,7 +840,9 @@ namespace PanelControllerCLI
                     throw new NotFoundException(name, "Profiles", exc);
                 }
             }
-        
+
+            [DisplayName("Use-Extension")]
+            [Description("Use an extension file (.dll).")]
             public static void Extension(string path)
             {
                 static void LoadAssemblyFromPath(string filePath)
@@ -850,6 +878,7 @@ namespace PanelControllerCLI
         public static class Delete
         {
             [DisplayName("Delete-Generic")]
+            [Description("Delete (Disable) a generic IPanelObject. Use --index to flag to identify by index.")]
             public static void Generic(string identifier, string[]? flags = null)
             {
                 IPanelObject generic;
@@ -885,6 +914,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Delete-Profile")]
+            [Description("Delete a Profile. Use --index to flag to identify by index.")]
             public static void Profile(string identifier, string[]? flags = null)
             {
                 int index;
@@ -922,6 +952,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Delete-Mapping")]
+            [Description("Delete a Mapping of *current contextual profile*. Use --index to flag to identify by index.")]
             public static void Mapping(string identifier, string[]? flags = null)
             {
                 if (GetContextualProfile() is not Profile profile)
@@ -961,6 +992,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Delete-MappedObject")]
+            [Description("Delete a MappedObject of currently *selected* Mapping. Use --index to flag to identify by index.")]
             public static void MappedObject(string identifier, string[]? flags = null)
             {
                 if (CurrentContext.SelectedObject is not Mapping mapping)
@@ -999,6 +1031,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Delete-PanelInfo")]
+            [Description("Delete PanelInfo from known panels. Use --index to flag to identify by index.")]
             public static void PanelInfo(string identifier, string[]? flags = null)
             {
                 PanelInfo info;
@@ -1136,6 +1169,7 @@ namespace PanelControllerCLI
             private static VirtualChannel? _channel = null;
 
             [DisplayName("Virtual-Initialize")]
+            [Description("Initialize a virtual panel to be controlled through CLI commands.")]
             public static void Initialize(string name, uint digitalCount, uint analogCount, uint displayCount)
             {
                 Deinitialize();
@@ -1156,6 +1190,7 @@ namespace PanelControllerCLI
                 Main.PanelsInfo[index].Name = name;
             }
 
+            [Description("Use a virtual panel whose information is already known to be controlled through CLI commands.")]
             public static void UseExisting()
             {
                 if (_channel is not null)
@@ -1168,6 +1203,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Virtual-SendStroke")]
+            [Description("Send a button (digital) stroke (push and release) to Controller.")]
             public static void SendStroke(uint id)
             {
                 if (_channel is null)
@@ -1179,6 +1215,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Virtual-Set")]
+            [Description("Set an analog value and send to Controller.")]
             public static void SetAnalogValue(uint id, string value)
             {
                 if (_channel is null)
@@ -1189,6 +1226,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Virtual-Display")]
+            [Description("Not implemented...")]
             public static void Display(uint id)
             {
                 if (_channel is null)
@@ -1199,6 +1237,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Virtual-Deinitialize")]
+            [Description("Deinitialize the Virtual Panel. Deletes panel info.")]
             public static void Deinitialize()
             {
                 if (_channel is not null)
@@ -1244,6 +1283,7 @@ namespace PanelControllerCLI
 
 
             [DisplayName("Help")]
+            [Description("Get information of a command.")]
             public static void CommandHelp(string? command = null)
             {
                 if (command is null)
@@ -1263,6 +1303,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Help-Constructor")]
+            [Description("Get information of an extension's type constructor.")]
             public static void ConstructorHelp(string typeName)
             {
                 TextWriter Out = CurrentContext.Interpreter.Out;
@@ -1279,6 +1320,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Help-Type")]
+            [Description("Get information of an extension's type.")]
             public static void TypeHelp(string typeName)
             {
                 TextWriter Out = CurrentContext.Interpreter.Out;
@@ -1293,6 +1335,7 @@ namespace PanelControllerCLI
             }
 
             [DisplayName("Help-Extension")]
+            [Description("Get information of an extension assembly (dll).")]
             public static void ExtensionHelp(string assemblyName)
             {
                 if (Array.Find(AppDomain.CurrentDomain.GetAssemblies(), assy => assy.GetName().Name == assemblyName || Path.GetFileName(assy.Location) == assemblyName) is not Assembly assembly)
