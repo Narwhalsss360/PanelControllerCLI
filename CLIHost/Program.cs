@@ -21,6 +21,7 @@ while (true)
     try
     {
         context.Interpreter.Run();
+        break;
     }
     catch (Exception exc)
     {
