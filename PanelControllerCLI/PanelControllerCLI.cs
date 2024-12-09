@@ -40,6 +40,7 @@ namespace PanelControllerCLI
             new(Show.PanelInfo),
             new(Show.Properties),
             new(Show.Selected),
+            new(Show.Logs),
             new(Use.Profile),
             new(Use.Extension),
             new(Delete.Generic),
@@ -878,6 +879,14 @@ namespace PanelControllerCLI
                     Out.WriteLine(FormatSingleLine(current));
                     depth++;
                 }
+            }
+
+            [DisplayName("Show-Logs")]
+            public static void Logs(Logger.Levels maximumLevel = Logger.Levels.Debug, string format = "/T [/L][/F] /M")
+            {
+                foreach (Logger.HistoricalLog log in Logger.Logs)
+                    if (log.Level <= maximumLevel)
+                        CurrentContext.Interpreter.Out.WriteLine(log.ToString(format));
             }
         }
 
