@@ -6,7 +6,6 @@ using PanelController.PanelObjects;
 using System.Reflection;
 using PanelController.PanelObjects.Properties;
 using NStreamCom;
-using System.Data;
 using System.Text;
 
 namespace PanelControllerCLI
@@ -38,6 +37,7 @@ namespace PanelControllerCLI
             new(Show.Mapping),
             new(Show.MappedObject),
             new(Show.PanelInfo),
+            new(Show.Properties),
             new(Use.Profile),
             new(Use.Extension),
             new(Delete.Generic),
@@ -623,9 +623,7 @@ namespace PanelControllerCLI
             [DisplayName("Edit-Property")]
             public static void Property(string property, string value)
             {
-                if (CurrentContext.SelectedObject is not IPanelObject @object)
-                    throw new NotImplementedException();
-
+                IPanelObject @object = RequireSelectionAsPanelObject();
                 PropertyInfo propInfo;
                 try
                 {
@@ -714,6 +712,8 @@ namespace PanelControllerCLI
                 CurrentContext.Interpreter.Out.WriteLine("Extensions:");
                 foreach (Extensions.ExtensionCategories category in Enum.GetValues<Extensions.ExtensionCategories>())
                 {
+                    if (Controller.Extensions.ExtensionsByCategory[category].Count == 0)
+                        continue;
                     CurrentContext.Interpreter.Out.WriteLine("\t" + category.ToString());
                     foreach (Type type in Controller.Extensions.ExtensionsByCategory[category])
                         CurrentContext.Interpreter.Out.WriteLine("\t\t" + FormatSingleLine(type));
@@ -723,6 +723,9 @@ namespace PanelControllerCLI
             [DisplayName("Show-Generics")]
             public static void Generic()
             {
+                if (Controller.Extensions.Objects.Count == 0)
+                    return;
+
                 CurrentContext.Interpreter.Out.WriteLine("Generic Objects");
                 foreach (IPanelObject @object in Controller.Extensions.Objects)
                     CurrentContext.Interpreter.Out.WriteLine("\t" + FormatSingleLine(@object));
@@ -731,6 +734,8 @@ namespace PanelControllerCLI
             [DisplayName("Show-Channels")]
             public static void Channel()
             {
+                if (Main.ConnectedPanels.Count == 0)
+                    return;
                 CurrentContext.Interpreter.Out.WriteLine("Channels:");
                 foreach (ConnectedPanel connected in Main.ConnectedPanels)
                     CurrentContext.Interpreter.Out.WriteLine("\t" + FormatSingleLine(connected));
@@ -739,6 +744,9 @@ namespace PanelControllerCLI
             [DisplayName("Show-Profiles")]
             public static void Profile()
             {
+                if (Main.Profiles.Count == 0)
+                    return;
+
                 CurrentContext.Interpreter.Out.WriteLine("Profiles:");
                 foreach (Profile profile in Main.Profiles)
                     CurrentContext.Interpreter.Out.WriteLine("\t" + FormatSingleLine(profile));
@@ -749,6 +757,9 @@ namespace PanelControllerCLI
             {
                 if (GetContextualProfile() is not Profile profile)
                     throw new NotImplementedException(null, new MissingSelectionException());
+
+                if (profile.Mappings.Length == 0)
+                    return;
 
                 CurrentContext.Interpreter.Out.WriteLine("Mappings:");
                 foreach (Mapping mapping in profile.Mappings)
@@ -761,6 +772,9 @@ namespace PanelControllerCLI
                 if (CurrentContext.SelectedObject is not Mapping mapping)
                     throw new NotImplementedException(null, new MissingSelectionException());
 
+                if (mapping.Objects.Count == 0)
+                    return;
+
                 CurrentContext.Interpreter.Out.WriteLine("Mapped Objects:");
                 foreach (Mapping.MappedObject mapped in mapping.Objects)
                     CurrentContext.Interpreter.Out.WriteLine("\t" + FormatSingleLine(mapped));
@@ -769,9 +783,26 @@ namespace PanelControllerCLI
             [DisplayName("Show-PanelInfos")]
             public static void PanelInfo()
             {
+                if (Main.PanelsInfo.Count == 0)
+                    return;
+
                 CurrentContext.Interpreter.Out.WriteLine("Panel Infos:");
                 foreach (PanelInfo info in Main.PanelsInfo)
                     CurrentContext.Interpreter.Out.WriteLine("\t" + FormatSingleLine(info));
+            }
+
+            [DisplayName("Show-Properties")]
+            public static void Properties()
+            {
+                IPanelObject @object = RequireSelectionAsPanelObject();
+
+                Dictionary<PropertyInfo, object?> properties = @object.GetAllPropertiesValues();
+                if (properties.Count == 0)
+                    return;
+
+                CurrentContext.Interpreter.Out.WriteLine($"{@object.GetItemName()}:");
+                foreach (KeyValuePair<PropertyInfo, object?> pair in properties)
+                    CurrentContext.Interpreter.Out.WriteLine($"\t{pair.Key.Name}: {pair.Value}");
             }
         }
 
