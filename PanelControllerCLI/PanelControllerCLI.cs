@@ -84,7 +84,7 @@ namespace PanelControllerCLI
             return _context;
         }
 
-        public static List<Func<object, Func<string>?>> SingleLineCustomTypeFormatters = new()
+        public static List<Func<object, Func<string>?>> SingleLineCustomTypeFormatters { get; set; } = new()
         {
             { obj => ReferenceEquals(obj, Main.Profiles) ? () => "Profiles List" : null },
             { obj => ReferenceEquals(obj, Main.PanelsInfo) ? () => "Panels List" : null },
@@ -343,7 +343,7 @@ namespace PanelControllerCLI
                 if (typeName.FindType() is not Type type)
                     throw new NotFoundException(typeName, "Extensions");
 
-                Mapping.MappedObject newMappedObject = new Mapping.MappedObject()
+                Mapping.MappedObject newMappedObject = new()
                 {
                     Object = Instantiate(type, ParamsToStrings(constructArguments))
                 };
