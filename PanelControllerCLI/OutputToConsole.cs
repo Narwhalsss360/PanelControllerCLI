@@ -17,15 +17,26 @@ namespace PanelControllerCLI
         
         private static readonly string RESTORE_SAVED_CURRENT_CURSOR_POSITION = "u";
 
-        private readonly string _message;
-
         private readonly TextWriter _out;
+
+        [ItemName]
+        public string Name { get; set; } = "";
+
+        [UserProperty]
+        public string Message { get; set; }
 
         [UserConstructor("The `message` argument corresponds to what would be printed when this action runs.")]
         public OutputToConsole(string message)
         {
-            this._message = message;
+            Message = message;
             _out = PanelControllerCLI.CurrentContext.Interpreter.Out;
+            if (Name == "")
+                Name = $"Output: {message}";
+        }
+
+        public OutputToConsole()
+            : this("")
+        {
         }
 
         private void SendANSI(string str, int repeat = 1)
@@ -57,9 +68,9 @@ namespace PanelControllerCLI
 
         public object? Run()
         {
-            if (_message == "")
+            if (Message == "")
                 return "OutputToConsole: Cannot have empty message string";
-            PrintAbove(_message);
+            PrintAbove(Message);
             return null;
         }
     }
