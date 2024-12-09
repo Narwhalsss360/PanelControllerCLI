@@ -26,6 +26,7 @@ namespace PanelControllerCLI
             new(Select.Mapping),
             new(Select.MappedObject),
             new(Select.Panel),
+            new(Select.Back),
             new(Edit.Name),
             new(Edit.Property),
             new(Edit.Collection),
@@ -613,6 +614,9 @@ namespace PanelControllerCLI
                     panelInfo
                 );
             }
+
+            [DisplayName("Select-Back")]
+            public static void Back() => CurrentContext.SelectedBack();
         }
 
         public static class Edit
