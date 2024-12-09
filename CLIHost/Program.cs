@@ -16,6 +16,7 @@ context.Interpreter.Commands.AddRange([
     new(Quit)
 ]);
 
+Persistence.LoadExtensions();
 Persistence.LoadPanels();
 Persistence.LoadProfiles();
 Persistence.LoadState()?.Apply();
