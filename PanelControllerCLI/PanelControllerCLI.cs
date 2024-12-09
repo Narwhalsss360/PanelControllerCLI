@@ -191,6 +191,15 @@ namespace PanelControllerCLI
             return Main.CurrentProfile;
         }
 
+        public static IPanelObject RequireSelectionAsPanelObject()
+        {
+            if (CurrentContext.SelectedObject is IPanelObject @object)
+                return @object;
+            if (CurrentContext.SelectedObject is Mapping.MappedObject mapped)
+                return mapped.Object;
+            throw new NotImplementedException(null, new MissingSelectionException());
+        }
+
         public static class Create
         {
             [DisplayName("Create-Generic")]
