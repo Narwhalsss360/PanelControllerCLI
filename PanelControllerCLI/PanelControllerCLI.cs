@@ -167,7 +167,7 @@ namespace PanelControllerCLI
 
                 for (int j = i + 1; j < list.Count; j++)
                 {
-                    if (predicate(list[i]))
+                    if (predicate(list[j]))
                         throw new MoreThanOneMatchException("More than one element matched the predicate.");
                 }
 
