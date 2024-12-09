@@ -39,6 +39,7 @@ namespace PanelControllerCLI
             new(Show.MappedObject),
             new(Show.PanelInfo),
             new(Use.Profile),
+            new(Use.Extension),
             new(Delete.Generic),
             new(Delete.Profile),
             new(Delete.Mapping),
@@ -783,6 +784,37 @@ namespace PanelControllerCLI
                     throw new NotImplementedException();
                 }
                 catch (NotFoundException)
+                {
+                    throw new NotImplementedException();
+                }
+            }
+        
+            public static void Extension(string path)
+            {
+                void LoadAssemblyFromPath(string filePath)
+                {
+                    Assembly assembly;
+                    try
+                    {
+                        assembly = Assembly.LoadFrom(filePath);
+                    }
+                    catch (BadImageFormatException)
+                    {
+                        throw new NotImplementedException();
+                    }
+                    Extensions.Load(assembly);
+                }
+
+                if (Directory.Exists(path))
+                {
+                    foreach (string file in Directory.GetFiles(path))
+                        LoadAssemblyFromPath(file);
+                }
+                else if (File.Exists(path))
+                {
+                    LoadAssemblyFromPath(path);
+                }
+                else
                 {
                     throw new NotImplementedException();
                 }
