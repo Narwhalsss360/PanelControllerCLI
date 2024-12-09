@@ -127,7 +127,11 @@ namespace PanelControllerCLI
         {
             if (_selectionStack.Count == 0)
                 return null;
-            return _selectionStack.Pop();
+
+            object? newTop = _selectionStack.Pop();
+            if (newTop is ContainerKey)
+                return SelectedBack();
+            return newTop;
         }
 
         public int StepsBack(object @object)
