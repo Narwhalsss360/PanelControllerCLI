@@ -906,7 +906,7 @@ namespace PanelControllerCLI
         
             public static void Extension(string path)
             {
-                void LoadAssemblyFromPath(string filePath)
+                static void LoadAssemblyFromPath(string filePath)
                 {
                     Assembly assembly;
                     try
@@ -1152,7 +1152,7 @@ namespace PanelControllerCLI
 
                 private bool _opened = false;
 
-                private PacketCollector _collector = new();
+                private readonly PacketCollector _collector = new();
 
                 public VirtualChannel(PanelInfo info)
                 {
@@ -1197,7 +1197,7 @@ namespace PanelControllerCLI
                             data = Encoding.UTF8.GetBytes(value);
                             break;
                         default:
-                            data = Array.Empty<byte>();
+                            data = [];
                             break;
                     }
                     if (messageID == 0xFFFF)
