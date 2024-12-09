@@ -1153,7 +1153,7 @@ namespace PanelControllerCLI
     
         public static class VirtualPanel
         {
-            private static readonly byte[] VirtualPanelGuid = [228, 67, 132, 24, 63, 182, 20, 64, 167, 143, 248, 141, 250, 253, 118, 38];
+            private static readonly Guid VirtualPanelGuid = new([228, 67, 132, 24, 63, 182, 20, 64, 167, 143, 248, 141, 250, 253, 118, 38]);
 
             private class VirtualChannel : IChannel
             {
@@ -1262,7 +1262,7 @@ namespace PanelControllerCLI
                         DigitalCount = digitalCount,
                         AnalogCount = analogCount,
                         DisplayCount = displayCount,
-                        PanelGuid = new(VirtualPanelGuid)
+                        PanelGuid = VirtualPanelGuid
                     }
                 );
 
@@ -1271,6 +1271,17 @@ namespace PanelControllerCLI
                     throw new NotImplementedException();
                 int index = Main.PanelsInfo.IndexOf(_channel.PanelInfo);
                 Main.PanelsInfo[index].Name = name;
+            }
+
+            public static void UseExisting()
+            {
+                if (_channel is not null)
+                    throw new NotImplementedException();
+
+                if (Main.PanelsInfo.Find(panel => panel.PanelGuid == VirtualPanelGuid) is not PanelInfo info)
+                    throw new NotImplementedException();
+                Main.PanelsInfo.Remove(info);
+                Initialize(info.Name, info.DigitalCount, info.AnalogCount, info.DisplayCount);
             }
 
             [DisplayName("Virtual-SendStroke")]
