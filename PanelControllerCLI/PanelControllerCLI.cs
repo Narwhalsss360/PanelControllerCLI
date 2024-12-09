@@ -279,9 +279,17 @@ namespace PanelControllerCLI
                     throw new WrongTypeException(instantiated.GetType(), typeof(IChannel));
 
                 if (flags?.Contains("--wait-for-handshake") ?? false)
+                {
                     Main.Handshake(channel);
+                }
                 else
-                    Main.HandshakeAsync(channel);
+                {
+                    Main.HandshakeAsync(channel).ContinueWith(task =>
+                    {
+                        if (task.Exception is not null)
+                            throw new CLIFatalException("An exception was thrown during handshake", task.Exception);
+                    });
+                }
             }
 
             [DisplayName("Create-Profile")]
