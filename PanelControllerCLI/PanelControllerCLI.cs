@@ -38,6 +38,7 @@ namespace PanelControllerCLI
             new(Show.MappedObject),
             new(Show.PanelInfo),
             new(Show.Properties),
+            new(Show.Selected),
             new(Use.Profile),
             new(Use.Extension),
             new(Delete.Generic),
@@ -803,6 +804,48 @@ namespace PanelControllerCLI
                 CurrentContext.Interpreter.Out.WriteLine($"{@object.GetItemName()}:");
                 foreach (KeyValuePair<PropertyInfo, object?> pair in properties)
                     CurrentContext.Interpreter.Out.WriteLine($"\t{pair.Key.Name}: {pair.Value}");
+            }
+
+            [DisplayName("Show-Selected")]
+            public static void Selected()
+            {
+                TextWriter Out = CurrentContext.Interpreter.Out;
+                object?[] currentSelections = CurrentContext.CurrentSelectionStack();
+                int depth = 0;
+                for (int i = currentSelections.Length - 1; i >= 0; i--)
+                {
+                    object? current = currentSelections[i];
+                    if (depth == 0)
+                    {
+                        Out.WriteLine(FormatSingleLine(current));
+                        depth++;
+                        continue;
+                    }
+                    else
+                    {
+                        Out.Write("|");
+                    }
+
+                    for (int j = 0; true; j++)
+                    {
+                        if (j == depth)
+                        {
+                            Out.Write(' ');
+                            break;
+                        }
+                        Out.Write('-');
+                    }
+
+                    if (Context.IsContainerKey(current))
+                    {
+                        Out.Write(FormatSingleLine(Context.GetContainerKey(current ?? "")) + ": ");
+                        i--;
+                        current = currentSelections[i];
+                    }
+
+                    Out.WriteLine(current);
+                    depth++;
+                }
             }
         }
 

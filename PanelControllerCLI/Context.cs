@@ -1,6 +1,7 @@
 ﻿using CLIApplication;
 using PanelController.Profiling;
 using System.Collections;
+using System.Diagnostics.Contracts;
 using System.Linq;
 
 namespace PanelControllerCLI
@@ -87,7 +88,16 @@ namespace PanelControllerCLI
             return containingObject;
         }
 
-        private static bool IsContainerKey(object? @object) => @object as ContainerKey is not null;
+        public static bool IsContainerKey(object? @object) => @object as ContainerKey is not null;
+
+        public static object GetContainerKey(object key)
+        {
+            if (key is not ContainerKey containerKey)
+                throw new NotImplementedException();
+            return containerKey.key;
+        }
+
+        public object?[] CurrentSelectionStack() => _selectionStack.ToArray();
 
         public void SetNewSelectionStack(params object[] objects)
         {
@@ -106,7 +116,6 @@ namespace PanelControllerCLI
             _selectionStack.Push(new ContainerKey(key));
             _selectionStack.Push(item);
         }
-
 
         public void SelectedInnerCollectionAndItem(object collection, object key, object item)
         {
