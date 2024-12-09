@@ -10,7 +10,11 @@ using CLI = PanelControllerCLI.PanelControllerCLI;
 
 Main.Initialize();
 Context context = CLI.Initialize(new CLIInterpreter() { InterfaceName = "CLIHost", IgnoreCase = true });
-context.Interpreter.Commands.Add(new(Exit));
+context.Interpreter.Commands.AddRange([
+    new(Clear),
+    new(Exit),
+    new(Quit)
+]);
 
 Persistence.LoadPanels();
 Persistence.LoadProfiles();
@@ -81,4 +85,8 @@ bool ProcessTargetException(Exception exception)
     return false;
 }
 
+void Clear() => Console.Clear();
+
 void Exit() => context.Interpreter.Stop();
+
+void Quit() => context.Interpreter.Stop();
