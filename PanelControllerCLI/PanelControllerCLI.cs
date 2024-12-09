@@ -71,9 +71,11 @@ namespace PanelControllerCLI
             }
         }
 
-        public static Context Initialize(CLIInterpreter? interpreter = null)
+        public static Context Initialize(CLIInterpreter interpreter)
         {
-            _context ??= new(interpreter ?? new CLIInterpreter());
+            if (_context is not null)
+                throw new NotImplementedException(null, new InvalidProgramException());
+            _context = new(interpreter);
             _context.Interpreter.Commands.AddRange(_commandDelegates);
             Extensions.Load<OutputToConsole>();
             return _context;
