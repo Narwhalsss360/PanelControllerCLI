@@ -91,7 +91,8 @@ namespace PanelControllerCLI
             { obj => ReferenceEquals(obj, Extensions.Objects) ? () => "Generics List" : null },
             { obj => obj.GetType().IsAssignableTo(typeof(IList<Mapping.MappedObject>)) ? () => "MappedObjects List" : null },
             { obj => obj is Mapping.MappedObject mapped ? (() => $"{mapped.Object.GetType().Name} {mapped.Object.GetItemName()}") : null },
-            { obj => obj is Profile profile ? (Main.CurrentProfile == profile ? () => $">{profile.Name}<" : () => profile.Name ) : null }
+            { obj => obj is Profile profile ? (Main.CurrentProfile == profile ? () => $">{profile.Name}<" : () => profile.Name ) : null },
+            { obj => obj is Type type ? () => $"Type:{type.FullName}" : null }
         };
 
         public static string FormatSingleLine(this object? @object)
