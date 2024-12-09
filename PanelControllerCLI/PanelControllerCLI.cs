@@ -7,6 +7,10 @@ using System.Reflection;
 using PanelController.PanelObjects.Properties;
 using NStreamCom;
 using System.Text;
+using PanelControllerCLI.CLIFatalExceptions;
+using PanelControllerCLI.UserErrorExceptions;
+using PanelControllerCLI.DataErrorExceptions;
+using System.Drawing;
 
 namespace PanelControllerCLI
 {
@@ -66,7 +70,7 @@ namespace PanelControllerCLI
             get
             {
                 if (_context is null)
-                    throw new NotImplementedException();
+                    throw new UninitializedContextException("The current context for PanelControllerCLI is not initialized.");
                 return _context;
             }
         }
@@ -74,7 +78,7 @@ namespace PanelControllerCLI
         public static Context Initialize(CLIInterpreter interpreter)
         {
             if (_context is not null)
-                throw new NotImplementedException(null, new InvalidProgramException());
+                throw new AlreadyInitializedException("PanelControllerCLI is already initialized", new InvalidProgramException());
             _context = new(interpreter);
             _context.Interpreter.Commands.AddRange(_commandDelegates);
             Extensions.Load<OutputToConsole>();
@@ -129,14 +133,14 @@ namespace PanelControllerCLI
             {
                 if (exc.AllowRetry)
                     return Ask<T>(parser);
-                throw new UserEntryParseException(false);
+                throw new UserEntryParseException("Parse error, see cause.", false, exc);
             }
         }
 
         public static T SelectFrom<T>(this IList<T> list)
         {
             if (list.Count == 0)
-                throw new EmptyCollectionException();
+                throw new EmptyCollectionException("Collection was empty.");
 
             Console.WriteLine("Select index:");
             for (int i = 0; i < list.Count; i++)
@@ -145,7 +149,7 @@ namespace PanelControllerCLI
             int index = Ask<int>((s) =>
             {
                 if (!int.TryParse(s, out int value))
-                    throw new UserEntryParseException(true);
+                    throw new UserEntryParseException(typeof(int), s, true);
                 return value;
             });
 
@@ -155,9 +159,7 @@ namespace PanelControllerCLI
         public static T FindOne<T>(this IList<T> list, Predicate<T> predicate, out int index)
         {
             if (list.Count == 0)
-            {
-                throw new EmptyCollectionException();
-            }
+                throw new EmptyCollectionException("Collection was empty");
 
             for (int i = 0; i < list.Count; i++)
             {
@@ -167,14 +169,14 @@ namespace PanelControllerCLI
                 for (int j = i + 1; j < list.Count; j++)
                 {
                     if (predicate(list[i]))
-                        throw new MoreThanOneMatchException();
+                        throw new MoreThanOneMatchException("More than one element matched the predicate.");
                 }
 
                 index = i;
                 return list[i];
             }
 
-            throw new NotFoundException();
+            throw new NotFoundException("No element matched the predicate.");
         }
 
         public static T FindOne<T>(this IList<T> list, Predicate<T> predicate)
@@ -184,21 +186,21 @@ namespace PanelControllerCLI
 
         public static Type? FindType(this string type)
         {
-            Type? shortName = null;
+            Type? fromShortName = null;
             foreach (Type extension in Extensions.AllExtensions)
             {
                 if (extension.Name == type)
                 {
-                    if (shortName is not null)
-                        throw new NotImplementedException(null, new MoreThanOneMatchException());
-                    shortName = extension;
+                    if (fromShortName is not null)
+                        throw new NameCollisionException($"More than one type matched the name {type}");
+                    fromShortName = extension;
                 }
                 else if (extension.FullName == type)
                 {
                     return extension;
                 }
             }
-            return shortName;
+            return fromShortName;
         }
 
         public static string[] ParamsToStrings(object[] @params) => Array.ConvertAll(@params, param => param.ToString() ?? "");
@@ -206,15 +208,23 @@ namespace PanelControllerCLI
         public static IPanelObject Instantiate(this Type type, string[] arguments)
         {
             if (!type.Implements<IPanelObject>())
-                throw new NotImplementedException(null, new InvalidProgramException());
+                throw new UnsupportedTypeException(type, "Constructing");
 
-            ConstructorInfo? ctor = type.GetUserConstructor();
+            if (type.GetUserConstructor() is not ConstructorInfo ctor)
+                throw new NonConstructableException(type, typeof(IPanelObject), "No user constructor");
 
-            if (ctor is null && arguments.Length != 0)
-                throw new NotImplementedException("Please enter no arguments",  new NonConstructableException());
+            object?[] parsed;
+            try
+            {
+                parsed = ctor.GetParameters().ParseArguments(arguments);
+            }
+            catch (ArgumentException exc)
+            {
+                throw new UserEntryParseException($"An error occured parsing constructor arguments for {type.Name}", false, exc);
+            }
 
-            if (Activator.CreateInstance(type, ctor is null ? [] : ctor.GetParameters().ParseArguments(arguments)) is not IPanelObject @object)
-                throw new NotImplementedException(null, new InvalidProgramException());
+            if (Activator.CreateInstance(type, parsed) is not IPanelObject @object)
+                throw new UnsupportedTypeException($"The type {type.Name} did not construct to a IPanelObject", new InvalidProgramException("'type' should be verified to implement IPanelObject"));
             return @object;
         }
 
@@ -234,7 +244,7 @@ namespace PanelControllerCLI
                 return @object;
             if (CurrentContext.SelectedObject is Mapping.MappedObject mapped)
                 return mapped.Object;
-            throw new NotImplementedException(null, new MissingSelectionException());
+            throw new MissingSelectionException(typeof(IPanelObject));
         }
 
         public static class Create
@@ -242,34 +252,11 @@ namespace PanelControllerCLI
             [DisplayName("Create-Generic")]
             public static void Generic(string typeName, string[]? flags = null, params object[] constructArguments)
             {
-                Type type;
-                try
-                {
-                    if (typeName.FindType() is not Type found)
-                        throw new NotImplementedException();
-                    type = found;
-                }
-                catch (MoreThanOneMatchException)
-                {
-                    throw new NotImplementedException();
-                }
+                if (typeName.FindType() is not Type type)
+                    throw new NotFoundException(typeName, "Extensions");
 
-                IPanelObject @object;
-                try
-                {
-                    @object = Instantiate(type, ParamsToStrings(constructArguments));
-                }
-                catch (NonConstructableException)
-                {
-                    throw new NotImplementedException();
-                }
-                catch (ArgumentException)
-                {
-                    throw new NotImplementedException();
-                }
-
+                IPanelObject @object = Instantiate(type, ParamsToStrings(constructArguments));
                 Extensions.Objects.Add(@object);
-
                 if (flags?.Contains("--select") ?? false)
                 {
                     CurrentContext.SetNewSelectionStack(
@@ -283,33 +270,12 @@ namespace PanelControllerCLI
             [DisplayName("Create-Channel")]
             public static void Channel(string typeName, string[]? flags = null, params object[] constructArguments)
             {
-                Type type;
-                try
-                {
-                    if (typeName.FindType() is not Type found)
-                        throw new NotImplementedException();
-                    type = found;
-                }
-                catch (MoreThanOneMatchException)
-                {
-                    throw new NotImplementedException();
-                }
+                if (typeName.FindType() is not Type type)
+                    throw new NotFoundException(typeName, "Extensions");
 
-                IChannel channel;
-                try
-                {
-                    if (Instantiate(type, ParamsToStrings(constructArguments)) is not IChannel asChannel)
-                        throw new NotImplementedException();
-                    channel = asChannel;
-                }
-                catch (NonConstructableException)
-                {
-                    throw new NotImplementedException();
-                }
-                catch (ArgumentException)
-                {
-                    throw new NotImplementedException();
-                }
+                object? instantiated = Instantiate(type, ParamsToStrings(constructArguments));
+                if (instantiated is not IChannel channel)
+                    throw new WrongTypeException(instantiated.GetType(), typeof(IChannel));
 
                 if (flags?.Contains("--wait-for-handshake") ?? false)
                     Main.Handshake(channel);
@@ -340,22 +306,9 @@ namespace PanelControllerCLI
             public static void Mapping(string name, string panel, InterfaceTypes interfaceType, uint interfaceID, string[]? flags = null)
             {
                 if (GetContextualProfile() is not Profile profile)
-                    throw new NotImplementedException(null, new MissingSelectionException());
+                    throw new MissingSelectionException(typeof(Profile));
 
-                Guid guid;
-
-                try
-                {
-                    guid = Main.PanelsInfo.FindOne(info => info.Name == panel).PanelGuid;
-                }
-                catch (MoreThanOneMatchException)
-                {
-                    throw new NotImplementedException();
-                }
-                catch (NotFoundException)
-                {
-                    throw new NotImplementedException();
-                }
+                Guid guid = Main.PanelsInfo.FindOne(info => info.Name == panel).PanelGuid;
 
                 Mapping newMapping = new()
                 {
@@ -381,41 +334,20 @@ namespace PanelControllerCLI
             public static void MappedObject(string typeName, string[]? flags = null, params object[] constructArguments)
             {
                 if (CurrentContext.SelectedObject is not Mapping mapping)
-                    throw new NotImplementedException(null, new MissingSelectionException());
+                    throw new MissingSelectionException(typeof(Mapping));
 
-                Type type;
-                try
-                {
-                    if (typeName.FindType() is not Type found)
-                        throw new NotImplementedException();
-                    type = found;
-                }
-                catch (MoreThanOneMatchException)
-                {
-                    throw new NotImplementedException();
-                }
+                if (typeName.FindType() is not Type type)
+                    throw new NotFoundException(typeName, "Extensions");
 
-                Mapping.MappedObject newMappedObject;
-                try
+                Mapping.MappedObject newMappedObject = new Mapping.MappedObject()
                 {
-                    newMappedObject = new Mapping.MappedObject()
-                    { Object = Instantiate(type, ParamsToStrings(constructArguments)) };   
-                }
-                catch (NonConstructableException)
-                {
-                    throw new NotImplementedException();
-                }
-                catch (ArgumentException)
-                {
-                    throw new NotImplementedException();
-                }
+                    Object = Instantiate(type, ParamsToStrings(constructArguments))
+                };
 
                 mapping.Objects.Add(newMappedObject);
 
                 if (flags?.Contains("--select") ?? false)
-                {
                     CurrentContext.SelectedInnerCollectionAndItem(mapping.Objects, mapping.Objects.Count - 1, newMappedObject);
-                }
             }
 
             [DisplayName("Create-PanelInfo")]
@@ -435,9 +367,9 @@ namespace PanelControllerCLI
                 if (flags?.Contains("--index") ?? false)
                 {
                     if (!int.TryParse(identifier, out index))
-                        throw new NotImplementedException();
+                        throw new UserEntryParseException(typeof(int), identifier, false);
                     if (index < 0 || index >= Extensions.Objects.Count)
-                        throw new NotImplementedException();
+                        throw new OutOfBoundsException(index, Extensions.Objects.Count);
                     generic = Extensions.Objects[index];
                 }
                 else
@@ -446,17 +378,13 @@ namespace PanelControllerCLI
                     {
                         generic = Extensions.Objects.FindOne(ext => ext.GetItemName() == identifier, out index);
                     }
-                    catch (EmptyCollectionException)
+                    catch (MoreThanOneMatchException exc)
                     {
-                        throw new NotImplementedException();
+                        throw new NameCollisionException(typeof(IPanelObject), identifier, "Generics", exc);
                     }
-                    catch (MoreThanOneMatchException)
+                    catch (NotFoundException exc)
                     {
-                        throw new NotImplementedException();
-                    }
-                    catch (NotFoundException)
-                    {
-                        throw new NotImplementedException();
+                        throw new NotFoundException(identifier, "Generics", exc);
                     }
                 }
 
@@ -479,17 +407,13 @@ namespace PanelControllerCLI
                         profile
                     );
                 }
-                catch (EmptyCollectionException)
+                catch (MoreThanOneMatchException exc)
                 {
-                    throw new NotImplementedException();
+                    throw new NameCollisionException(typeof(Profile), name, "Profiles", exc);
                 }
-                catch (MoreThanOneMatchException)
+                catch (NotFoundException exc)
                 {
-                    throw new NotImplementedException();
-                }
-                catch (NotFoundException)
-                {
-                    throw new NotImplementedException();
+                    throw new NotFoundException(name, "Profiles", exc);
                 }
             }
 
@@ -497,7 +421,7 @@ namespace PanelControllerCLI
             public static void Mapping(string identifier, string[]? flags = null)
             {
                 if (GetContextualProfile() is not Profile profile)
-                    throw new NotImplementedException(null, new MissingSelectionException());
+                    throw new MissingSelectionException(typeof(Profile));
 
                 Mapping mapping;
                 int index;
@@ -505,9 +429,9 @@ namespace PanelControllerCLI
                 {
                     Mapping[] mappings = profile.Mappings;
                     if (!int.TryParse(identifier, out index))
-                        throw new NotImplementedException();
+                        throw new UserEntryParseException(typeof(int), identifier, false);
                     if (index < 0 || index >= mappings.Length)
-                        throw new NotImplementedException();
+                        throw new OutOfBoundsException(index, mappings.Length);
                     mapping = mappings[index];
                 }
                 else
@@ -516,20 +440,15 @@ namespace PanelControllerCLI
                     {
                         mapping = profile.Mappings.FindOne(mapping => mapping.Name == identifier, out index);
                     }
-                    catch (EmptyCollectionException)
+                    catch (MoreThanOneMatchException exc)
                     {
-                        throw new NotImplementedException();
+                        throw new NameCollisionException(typeof(Mapping), identifier, "Mappings", exc);
                     }
-                    catch (MoreThanOneMatchException)
+                    catch (NotFoundException exc)
                     {
-                        throw new NotImplementedException();
-                    }
-                    catch (NotFoundException)
-                    {
-                        throw new NotImplementedException();
+                        throw new NotFoundException(identifier, "Mappings", exc);
                     }
                 }
-
 
                 CurrentContext.SetNewSelectionStack(
                     Main.Profiles,
@@ -543,16 +462,16 @@ namespace PanelControllerCLI
             public static void MappedObject(string identifier, string[]? flags = null)
             {
                 if (CurrentContext.SelectedObject is not Mapping mapping)
-                    throw new NotImplementedException(null, new MissingSelectionException());
+                    throw new MissingSelectionException(typeof(Mapping));
 
                 Mapping.MappedObject mapped;
                 int index;
                 if (flags?.Contains("--index") ?? false)
                 {
                     if (!int.TryParse(identifier, out index))
-                        throw new NotImplementedException();
+                        throw new UserEntryParseException(typeof(int), identifier, false);
                     if (index < 0 || index >= mapping.Objects.Count)
-                        throw new NotImplementedException();
+                        throw new OutOfBoundsException(index, mapping.Objects.Count);
                     mapped = mapping.Objects[index];
                 }
                 else
@@ -561,17 +480,13 @@ namespace PanelControllerCLI
                     {
                         mapped = mapping.Objects.FindOne(mapping => mapping.Object.GetItemName() == identifier, out index);
                     }
-                    catch (EmptyCollectionException)
+                    catch (MoreThanOneMatchException exc)
                     {
-                        throw new NotImplementedException();
+                        throw new NameCollisionException(typeof(Mapping.MappedObject), identifier, "MappedObjects", exc);
                     }
-                    catch (MoreThanOneMatchException)
+                    catch (NotFoundException exc)
                     {
-                        throw new NotImplementedException();
-                    }
-                    catch (NotFoundException)
-                    {
-                        throw new NotImplementedException();
+                        throw new NotFoundException(identifier, "MappedObjects", exc);
                     }
                 }
 
@@ -590,9 +505,9 @@ namespace PanelControllerCLI
                 if (flags?.Contains("--index") ?? false)
                 {
                     if (!int.TryParse(identifier, out index))
-                        throw new NotImplementedException();
+                        throw new UserEntryParseException(typeof(int), identifier, false);
                     if (index < 0 || index >= Main.PanelsInfo.Count)
-                        throw new NotImplementedException();
+                        throw new OutOfBoundsException(index, Main.PanelsInfo.Count);
                     panelInfo = Main.PanelsInfo[index];
                 }
                 else
@@ -601,17 +516,13 @@ namespace PanelControllerCLI
                     {
                         panelInfo = Main.PanelsInfo.FindOne(info => info.Name == identifier, out index);
                     }
-                    catch (EmptyCollectionException)
+                    catch (MoreThanOneMatchException exc)
                     {
-                        throw new NotImplementedException();
+                        throw new NameCollisionException(typeof(PanelInfo), identifier, "PanelInfos", exc);
                     }
-                    catch (MoreThanOneMatchException)
+                    catch (NotFoundException exc)
                     {
-                        throw new NotImplementedException();
-                    }
-                    catch (NotFoundException)
-                    {
-                        throw new NotImplementedException();
+                        throw new NotFoundException(identifier, "PanelInfos", exc);
                     }
                 }
 
@@ -631,10 +542,13 @@ namespace PanelControllerCLI
             [DisplayName("Edit-Name")]
             public static void Name(string name)
             {
+                if (CurrentContext.SelectedObject is null)
+                    throw new MissingSelectionException("Nothing is selected.");
+
                 if (CurrentContext.SelectedObject is IPanelObject panelObject)
                 {
                     if (!panelObject.TrySetItemName(name))
-                        throw new NotImplementedException();
+                        throw new NotNamableException(panelObject.GetType());
                 }
                 else if (CurrentContext.SelectedObject is Profile profile)
                 {
@@ -656,7 +570,7 @@ namespace PanelControllerCLI
                 }
                 else
                 {
-                    throw new NotImplementedException(null, new MissingSelectionException());
+                    throw new NotNamableException(CurrentContext.SelectedObject.GetType());
                 }
             }
 
@@ -669,24 +583,20 @@ namespace PanelControllerCLI
                 {
                     propInfo = @object.GetUserProperties().FindOne(prop => prop.Name == property);
                 }
-                catch (EmptyCollectionException)
+                catch (MoreThanOneMatchException exc)
                 {
-                    throw new NotImplementedException();
+                    throw new NameCollisionException(typeof(PropertyInfo), property, "Properties", exc);
                 }
-                catch (MoreThanOneMatchException)
+                catch (NotFoundException exc)
                 {
-                    throw new NotImplementedException();
-                }
-                catch (NotFoundException)
-                {
-                    throw new NotImplementedException();
+                    throw new NotFoundException(property, "Properties", exc);
                 }
 
                 if (!ParameterInfoExtensions.IsSupported(propInfo.PropertyType))
-                    throw new NotImplementedException();
+                    throw new UnsupportedTypeException(propInfo.PropertyType, "Property Editting");
 
                 if (value.ParseAs(propInfo.PropertyType) is not object parsed)
-                    throw new NotImplementedException();
+                    throw new UserEntryParseException(propInfo.PropertyType, value, false);
 
                 propInfo.SetValue(@object, parsed);
             }
@@ -694,52 +604,42 @@ namespace PanelControllerCLI
             [DisplayName("Edit-Collection")]
             public static void Collection(string property, string key, string value)
             {
-                if (CurrentContext.SelectedObject is not IPanelObject @object)
-                    throw new NotImplementedException();
-
+                IPanelObject @object = RequireSelectionAsPanelObject();
                 PropertyInfo propInfo;
                 try
                 {
                     propInfo = @object.GetUserProperties().FindOne(prop => prop.Name == property);
                 }
-                catch (EmptyCollectionException)
+                catch (MoreThanOneMatchException exc)
                 {
-                    throw new NotImplementedException();
+                    throw new NameCollisionException(typeof(PropertyInfo), property, "Properties", exc);
                 }
-                catch (MoreThanOneMatchException)
+                catch (NotFoundException exc)
                 {
-                    throw new NotImplementedException();
+                    throw new NotFoundException(property, "Properties", exc);
                 }
-                catch (NotFoundException)
-                {
-                    throw new NotImplementedException();
-                }
+
                 throw new NotImplementedException();
             }
 
             [DisplayName("Edit-CollectionOrder")]
             public static void CollectionOrder(string property, string keyA, string keyB)
             {
-                if (CurrentContext.SelectedObject is not IPanelObject @object)
-                    throw new NotImplementedException();
-
+                IPanelObject @object = RequireSelectionAsPanelObject();
                 PropertyInfo propInfo;
                 try
                 {
                     propInfo = @object.GetUserProperties().FindOne(prop => prop.Name == property);
                 }
-                catch (EmptyCollectionException)
+                catch (MoreThanOneMatchException exc)
                 {
-                    throw new NotImplementedException();
+                    throw new NameCollisionException(typeof(PropertyInfo), property, "Properties", exc);
                 }
-                catch (MoreThanOneMatchException)
+                catch (NotFoundException exc)
                 {
-                    throw new NotImplementedException();
+                    throw new NotFoundException(property, "Properties", exc);
                 }
-                catch (NotFoundException)
-                {
-                    throw new NotImplementedException();
-                }
+
                 throw new NotImplementedException();
             }
         }
@@ -796,7 +696,7 @@ namespace PanelControllerCLI
             public static void Mapping()
             {
                 if (GetContextualProfile() is not Profile profile)
-                    throw new NotImplementedException(null, new MissingSelectionException());
+                    throw new MissingSelectionException(typeof(Profile));
 
                 if (profile.Mappings.Length == 0)
                     return;
@@ -810,7 +710,7 @@ namespace PanelControllerCLI
             public static void MappedObject()
             {
                 if (CurrentContext.SelectedObject is not Mapping mapping)
-                    throw new NotImplementedException(null, new MissingSelectionException());
+                    throw new MissingSelectionException(typeof(Mapping));
 
                 if (mapping.Objects.Count == 0)
                     return;
@@ -903,19 +803,15 @@ namespace PanelControllerCLI
             {
                 try
                 {
-                    Main.CurrentProfile = Main.Profiles.FindOne(profile => profile.Name == name);
+                    Main.CurrentProfile = Main.Profiles.FindOne(profile => profile.Name == name, out int index);
                 }
-                catch (EmptyCollectionException)
+                catch (MoreThanOneMatchException exc)
                 {
-                    throw new NotImplementedException();
+                    throw new NameCollisionException(typeof(Profile), name, "Profiles", exc);
                 }
-                catch (MoreThanOneMatchException)
+                catch (NotFoundException exc)
                 {
-                    throw new NotImplementedException();
-                }
-                catch (NotFoundException)
-                {
-                    throw new NotImplementedException();
+                    throw new NotFoundException(name, "Profiles", exc);
                 }
             }
         
@@ -946,7 +842,7 @@ namespace PanelControllerCLI
                 }
                 else
                 {
-                    throw new NotImplementedException();
+                    throw new NotFoundException($"File {path} not found.");
                 }
             }
         }
@@ -956,38 +852,34 @@ namespace PanelControllerCLI
             [DisplayName("Delete-Generic")]
             public static void Generic(string identifier, string[]? flags = null)
             {
+                IPanelObject generic;
                 int index;
-                IPanelObject @object;
                 if (flags?.Contains("--index") ?? false)
                 {
                     if (!int.TryParse(identifier, out index))
-                        throw new NotImplementedException();
+                        throw new UserEntryParseException(typeof(int), identifier, false);
                     if (index < 0 || index >= Extensions.Objects.Count)
-                        throw new NotImplementedException();
-                    @object = Extensions.Objects[index];
+                        throw new OutOfBoundsException(index, Extensions.Objects.Count);
+                    generic = Extensions.Objects[index];
                 }
                 else
                 {
                     try
                     {
-                        @object = Extensions.Objects.FindOne(ext => ext.GetItemName() == identifier, out index);
+                        generic = Extensions.Objects.FindOne(ext => ext.GetItemName() == identifier, out index);
                     }
-                    catch (EmptyCollectionException)
+                    catch (MoreThanOneMatchException exc)
                     {
-                        throw new NotImplementedException();
+                        throw new NameCollisionException(typeof(IPanelObject), identifier, "Generics", exc);
                     }
-                    catch (MoreThanOneMatchException)
+                    catch (NotFoundException exc)
                     {
-                        throw new NotImplementedException();
-                    }
-                    catch (NotFoundException)
-                    {
-                        throw new NotImplementedException();
+                        throw new NotFoundException(identifier, "Generics", exc);
                     }
                 }
 
                 Extensions.Objects.RemoveAt(index);
-                int stepsBack = CurrentContext.StepsBack(@object);
+                int stepsBack = CurrentContext.StepsBack(generic);
                 while (stepsBack >= 0)
                     CurrentContext.SelectedBack();
             }
@@ -1000,9 +892,9 @@ namespace PanelControllerCLI
                 if (flags?.Contains("--index") ?? false)
                 {
                     if (!int.TryParse(identifier, out index))
-                        throw new NotImplementedException();
+                        throw new UserEntryParseException(typeof(int), identifier, false);
                     if (index < 0 || index >= Main.Profiles.Count)
-                        throw new NotImplementedException();
+                        throw new OutOfBoundsException(index, Main.Profiles.Count);
                     profile = Main.Profiles[index];
                 }
                 else
@@ -1011,17 +903,13 @@ namespace PanelControllerCLI
                     {
                         profile = Main.Profiles.FindOne(profile => profile.Name == identifier, out index);
                     }
-                    catch (EmptyCollectionException)
+                    catch (MoreThanOneMatchException exc)
                     {
-                        throw new NotImplementedException();
+                        throw new NameCollisionException(typeof(Profile), identifier, "Profiles", exc);
                     }
-                    catch (MoreThanOneMatchException)
+                    catch (NotFoundException exc)
                     {
-                        throw new NotImplementedException();
-                    }
-                    catch (NotFoundException)
-                    {
-                        throw new NotImplementedException();
+                        throw new NotFoundException(identifier, "Profiles", exc);
                     }
                 }
 
@@ -1037,35 +925,32 @@ namespace PanelControllerCLI
             public static void Mapping(string identifier, string[]? flags = null)
             {
                 if (GetContextualProfile() is not Profile profile)
-                    throw new NotImplementedException(null, new MissingSelectionException());
+                    throw new MissingSelectionException(typeof(Profile));
 
                 Mapping mapping;
+                int index;
                 if (flags?.Contains("--index") ?? false)
                 {
                     Mapping[] mappings = profile.Mappings;
-                    if (!int.TryParse(identifier, out int index))
-                        throw new NotImplementedException();
+                    if (!int.TryParse(identifier, out index))
+                        throw new UserEntryParseException(typeof(int), identifier, false);
                     if (index < 0 || index >= mappings.Length)
-                        throw new NotImplementedException();
+                        throw new OutOfBoundsException(index, mappings.Length);
                     mapping = mappings[index];
                 }
                 else
                 {
                     try
                     {
-                        mapping = profile.Mappings.FindOne(mapping => mapping.Name == identifier);
+                        mapping = profile.Mappings.FindOne(mapping => mapping.Name == identifier, out index);
                     }
-                    catch (EmptyCollectionException)
+                    catch (MoreThanOneMatchException exc)
                     {
-                        throw new NotImplementedException();
+                        throw new NameCollisionException(typeof(Mapping), identifier, "Mappings", exc);
                     }
-                    catch (MoreThanOneMatchException)
+                    catch (NotFoundException exc)
                     {
-                        throw new NotImplementedException();
-                    }
-                    catch (NotFoundException)
-                    {
-                        throw new NotImplementedException();
+                        throw new NotFoundException(identifier, "Mappings", exc);
                     }
                 }
 
@@ -1079,35 +964,31 @@ namespace PanelControllerCLI
             public static void MappedObject(string identifier, string[]? flags = null)
             {
                 if (CurrentContext.SelectedObject is not Mapping mapping)
-                    throw new NotImplementedException(null, new MissingSelectionException());
+                    throw new MissingSelectionException(typeof(Mapping));
 
-                int index;
                 Mapping.MappedObject mapped;
+                int index;
                 if (flags?.Contains("--index") ?? false)
                 {
                     if (!int.TryParse(identifier, out index))
-                        throw new NotImplementedException();
+                        throw new UserEntryParseException(typeof(int), identifier, false);
                     if (index < 0 || index >= mapping.Objects.Count)
-                        throw new NotImplementedException();
+                        throw new OutOfBoundsException(index, mapping.Objects.Count);
                     mapped = mapping.Objects[index];
                 }
                 else
                 {
                     try
                     {
-                        mapped = mapping.Objects.FindOne(mapped => mapped.Object.GetItemName() == identifier, out index);
+                        mapped = mapping.Objects.FindOne(mapping => mapping.Object.GetItemName() == identifier, out index);
                     }
-                    catch (EmptyCollectionException)
+                    catch (MoreThanOneMatchException exc)
                     {
-                        throw new NotImplementedException();
+                        throw new NameCollisionException(typeof(Mapping.MappedObject), identifier, "MappedObjects", exc);
                     }
-                    catch (MoreThanOneMatchException)
+                    catch (NotFoundException exc)
                     {
-                        throw new NotImplementedException();
-                    }
-                    catch (NotFoundException)
-                    {
-                        throw new NotImplementedException();
+                        throw new NotFoundException(identifier, "MappedObjects", exc);
                     }
                 }
 
@@ -1120,14 +1001,14 @@ namespace PanelControllerCLI
             [DisplayName("Delete-PanelInfo")]
             public static void PanelInfo(string identifier, string[]? flags = null)
             {
-                int index;
                 PanelInfo info;
+                int index;
                 if (flags?.Contains("--index") ?? false)
                 {
                     if (!int.TryParse(identifier, out index))
-                        throw new NotImplementedException();
+                        throw new UserEntryParseException(typeof(int), identifier, false);
                     if (index < 0 || index >= Main.PanelsInfo.Count)
-                        throw new NotImplementedException();
+                        throw new OutOfBoundsException(index, Main.PanelsInfo.Count);
                     info = Main.PanelsInfo[index];
                 }
                 else
@@ -1136,17 +1017,13 @@ namespace PanelControllerCLI
                     {
                         info = Main.PanelsInfo.FindOne(info => info.Name == identifier, out index);
                     }
-                    catch (EmptyCollectionException)
+                    catch (MoreThanOneMatchException exc)
                     {
-                        throw new NotImplementedException();
+                        throw new NameCollisionException(typeof(PanelInfo), identifier, "PanelInfos", exc);
                     }
-                    catch (MoreThanOneMatchException)
+                    catch (NotFoundException exc)
                     {
-                        throw new NotImplementedException();
-                    }
-                    catch (NotFoundException)
-                    {
-                        throw new NotImplementedException();
+                        throw new NotFoundException(identifier, "PanelInfos", exc);
                     }
                 }
 
@@ -1199,7 +1076,7 @@ namespace PanelControllerCLI
                     {
                         case InterfaceTypes.Digital:
                             if (state is not bool activated)
-                                throw new NotImplementedException();
+                                throw new CLIFatalException("Expected state object to be of type bool");
                             messageID = (int)ConnectedPanel.ReceiveIDs.DigitalStateUpdate;
                             data = new byte[5];
                             BitConverter.GetBytes(id).CopyTo(data, 0);
@@ -1207,7 +1084,7 @@ namespace PanelControllerCLI
                             break;
                         case InterfaceTypes.Analog:
                             if (state is not string value)
-                                throw new NotImplementedException();
+                                throw new CLIFatalException("Expected state object to be of type string");
                             messageID = (int)ConnectedPanel.ReceiveIDs.AnalogStateUpdate;
                             data = Encoding.UTF8.GetBytes(value);
                             break;
@@ -1274,7 +1151,7 @@ namespace PanelControllerCLI
 
                 Main.Handshake(_channel);
                 if (Main.ConnectedPanels.Find(connected => connected.PanelGuid == _channel.PanelInfo.PanelGuid) is not ConnectedPanel connected)
-                    throw new NotImplementedException();
+                    throw new CLIFatalException("Virtual panel handshake failed.");
                 int index = Main.PanelsInfo.IndexOf(_channel.PanelInfo);
                 Main.PanelsInfo[index].Name = name;
             }
@@ -1282,10 +1159,10 @@ namespace PanelControllerCLI
             public static void UseExisting()
             {
                 if (_channel is not null)
-                    throw new NotImplementedException();
+                    throw new UserErrorException("Virtual is already initialized.");
 
                 if (Main.PanelsInfo.Find(panel => panel.PanelGuid == VirtualPanelGuid) is not PanelInfo info)
-                    throw new NotImplementedException();
+                    throw new NotFoundException("Virtual Panel", "PanelInfos");
                 Main.PanelsInfo.Remove(info);
                 Initialize(info.Name, info.DigitalCount, info.AnalogCount, info.DisplayCount);
             }
@@ -1294,9 +1171,9 @@ namespace PanelControllerCLI
             public static void SendStroke(uint id)
             {
                 if (_channel is null)
-                    throw new NotImplementedException();
+                    throw new UserErrorException("Virtual panel was not initialized");
                 if (_channel.PanelInfo.DigitalCount <= id)
-                    throw new NotImplementedException();
+                    throw new OutOfBoundsException((int)id, (int)_channel.PanelInfo.DigitalCount);
                 _channel.SendInterfaceUpdate(InterfaceTypes.Digital, id, true);
                 _channel.SendInterfaceUpdate(InterfaceTypes.Digital, id, false);
             }
@@ -1305,9 +1182,9 @@ namespace PanelControllerCLI
             public static void SetAnalogValue(uint id, string value)
             {
                 if (_channel is null)
-                    throw new NotImplementedException();
-                if (_channel.PanelInfo.DigitalCount <= id)
-                    throw new NotImplementedException();
+                    throw new UserErrorException("Virtual panel was not initialized");
+                if (_channel.PanelInfo.AnalogCount <= id)
+                    throw new OutOfBoundsException((int)id, (int)_channel.PanelInfo.AnalogCount);
                 _channel.SendInterfaceUpdate(InterfaceTypes.Analog, id, value);
             }
 
@@ -1390,7 +1267,7 @@ namespace PanelControllerCLI
             {
                 TextWriter Out = CurrentContext.Interpreter.Out;
                 if (typeName.FindType() is not Type type)
-                    throw new NotImplementedException(null, new NotFoundException());
+                    throw new NotFoundException(typeName, "Extensions");
 
                 if (type.GetUserConstructor() is not ConstructorInfo ctor)
                 {
@@ -1406,7 +1283,7 @@ namespace PanelControllerCLI
             {
                 TextWriter Out = CurrentContext.Interpreter.Out;
                 if (typeName.FindType() is not Type type)
-                    throw new NotImplementedException(null, new NotFoundException());
+                    throw new NotFoundException(typeName, "Extensions");
 
                 Out.WriteLine($"Assembly: {type.Assembly.FullName}");
                 Out.WriteLine(type.FullName);
