@@ -52,7 +52,11 @@ namespace PanelControllerCLI
             new(VirtualPanel.SendStroke),
             new(VirtualPanel.SetAnalogValue),
             new(VirtualPanel.Display),
-            new(VirtualPanel.Deinitialize)
+            new(VirtualPanel.Deinitialize),
+            new(Help.CommandHelp),
+            new(Help.ConstructorHelp),
+            new(Help.TypeHelp),
+            new(Help.ExtensionHelp)
         ];
 
         private static Context? _context = new(new CLIInterpreter());
@@ -1332,6 +1336,97 @@ namespace PanelControllerCLI
                     }
 
                     _channel = null;
+                }
+            }
+        }
+    
+        public static class Help
+        {
+            private static void ShowConstructorHelp(ConstructorInfo ctor)
+            {
+                TextWriter Out = CurrentContext.Interpreter.Out;
+                ParameterInfo[] parameters = ctor.GetParameters();
+
+                if (parameters.Length == 0)
+                {
+                    Out.WriteLine("No arguments, default constructor.");
+                    return;
+                }
+
+                Out.Write($"{ctor.DeclaringType?.FullName}(");
+                for (int i = 0; i < parameters.Length; i++)
+                {
+                    Out.Write($"{parameters[i].ParameterType.Name}{(parameters[i].HasDefaultValue ? "?" : "")} {parameters[i].Name}");
+                    if (i != parameters.Length - 1)
+                        Out.Write(", ");
+                }
+                Out.WriteLine(')');
+            }
+
+
+            [DisplayName("Help")]
+            public static void CommandHelp(string? command = null)
+            {
+                if (command is null)
+                {
+                    foreach (CLIInterpreter.Command icmd in CurrentContext.Interpreter.Commands)
+                        CurrentContext.Interpreter.Out.WriteLine(icmd.GetCommandDescription());
+                    return;
+                }
+
+                if (CurrentContext.Interpreter.Commands.Find(cmd => cmd.Info.Name == command) is CLIInterpreter.Command cmd)
+                {
+                    CurrentContext.Interpreter.Out.WriteLine(cmd.GetFullDescription());
+                    return;
+                }
+
+                CurrentContext.Interpreter.Error.WriteLine("Not a command");
+            }
+
+            [DisplayName("Help-Constructor")]
+            public static void ConstructorHelp(string typeName)
+            {
+                TextWriter Out = CurrentContext.Interpreter.Out;
+                if (typeName.FindType() is not Type type)
+                    throw new NotImplementedException(null, new NotFoundException());
+
+                if (type.GetUserConstructor() is not ConstructorInfo ctor)
+                {
+                    Out.WriteLine($"{type.FullName} is a non-constructable type.");
+                    return;
+                }
+
+                ShowConstructorHelp(ctor);
+            }
+
+            [DisplayName("Help-Type")]
+            public static void TypeHelp(string typeName)
+            {
+                TextWriter Out = CurrentContext.Interpreter.Out;
+                if (typeName.FindType() is not Type type)
+                    throw new NotImplementedException(null, new NotFoundException());
+
+                Out.WriteLine($"Assembly: {type.Assembly.FullName}");
+                Out.WriteLine(type.FullName);
+
+                if (type.GetUserConstructor() is ConstructorInfo ctor)
+                    ShowConstructorHelp(ctor);
+            }
+
+            [DisplayName("Help-Extension")]
+            public static void ExtensionHelp(string assemblyName)
+            {
+                if (Array.Find(AppDomain.CurrentDomain.GetAssemblies(), assy => assy.GetName().Name == assemblyName || Path.GetFileName(assy.Location) == assemblyName) is not Assembly assembly)
+                {
+                    CurrentContext.Interpreter.Error.WriteLine("Not an assembly");
+                    return;
+                }
+
+                CurrentContext.Interpreter.Out.WriteLine($"{assembly.GetName().FullName}({assembly.Location}):");
+                foreach (Type type in assembly.GetTypes())
+                {
+                    if (type.Implements<IPanelObject>())
+                        CurrentContext.Interpreter.Out.WriteLine($"{type.GetInterfaces()[0]} {type.Name}");
                 }
             }
         }
