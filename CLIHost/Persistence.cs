@@ -1,6 +1,5 @@
 ﻿using System.Reflection;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using PanelController.Controller;
 using PanelController.Profiling;
@@ -50,16 +49,14 @@ namespace CLIHost
 
             foreach (string file in Directory.GetFiles(ExtensionsFolder))
             {
-                Assembly assembly;
                 try
                 {
-                    assembly = Assembly.LoadFrom(file);
+                    Extensions.Load(Assembly.LoadFrom(file));
                 }
-                catch (BadImageFormatException)
+                catch (Exception exc)
                 {
-                    throw new NotImplementedException();
+                    Console.Error.WriteLine(exc.ToString());
                 }
-                Extensions.Load(assembly);
             }
         }
 
