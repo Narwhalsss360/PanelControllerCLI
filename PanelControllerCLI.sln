@@ -7,13 +7,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "dependencies", "dependencie
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PanelController", "dependencies\PanelController\PanelController\PanelController.csproj", "{51EF7EEB-36DF-4558-92D4-5B8227EE88A6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NStreamCom", "dependencies\PanelController\dependencies\NStreamCom\src\C#\NStreamCom\NStreamCom.csproj", "{D2A91EBA-80A4-4EF0-9A94-74ED70107B06}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PanelControllerCLI", "PanelControllerCLI\PanelControllerCLI.csproj", "{35E87312-72F0-429B-A0C8-9BB8ABF5266A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLIApplication", "dependencies\CLIApplication\src\CLIApplication\CLIApplication.csproj", "{E83776E7-4985-4C18-9092-BC378A1EE176}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLIHost", "CLIHost\CLIHost.csproj", "{88283173-DCD9-4970-9C25-1BE7309B6E88}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NStreamCom", "dependencies\PanelController\dependencies\NStreamCom\src\NStreamCom\NStreamCom.csproj", "{CDF0DAED-FBB7-43FB-9C94-F32B9EF500DF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -25,10 +25,6 @@ Global
 		{51EF7EEB-36DF-4558-92D4-5B8227EE88A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{51EF7EEB-36DF-4558-92D4-5B8227EE88A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{51EF7EEB-36DF-4558-92D4-5B8227EE88A6}.Release|Any CPU.Build.0 = Release|Any CPU
-		{D2A91EBA-80A4-4EF0-9A94-74ED70107B06}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D2A91EBA-80A4-4EF0-9A94-74ED70107B06}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D2A91EBA-80A4-4EF0-9A94-74ED70107B06}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D2A91EBA-80A4-4EF0-9A94-74ED70107B06}.Release|Any CPU.Build.0 = Release|Any CPU
 		{35E87312-72F0-429B-A0C8-9BB8ABF5266A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{35E87312-72F0-429B-A0C8-9BB8ABF5266A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{35E87312-72F0-429B-A0C8-9BB8ABF5266A}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -41,13 +37,17 @@ Global
 		{88283173-DCD9-4970-9C25-1BE7309B6E88}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{88283173-DCD9-4970-9C25-1BE7309B6E88}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{88283173-DCD9-4970-9C25-1BE7309B6E88}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CDF0DAED-FBB7-43FB-9C94-F32B9EF500DF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CDF0DAED-FBB7-43FB-9C94-F32B9EF500DF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CDF0DAED-FBB7-43FB-9C94-F32B9EF500DF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CDF0DAED-FBB7-43FB-9C94-F32B9EF500DF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{51EF7EEB-36DF-4558-92D4-5B8227EE88A6} = {BE6C4640-5C73-4387-BA5F-96912E965F8C}
-		{D2A91EBA-80A4-4EF0-9A94-74ED70107B06} = {BE6C4640-5C73-4387-BA5F-96912E965F8C}
 		{E83776E7-4985-4C18-9092-BC378A1EE176} = {BE6C4640-5C73-4387-BA5F-96912E965F8C}
+		{CDF0DAED-FBB7-43FB-9C94-F32B9EF500DF} = {BE6C4640-5C73-4387-BA5F-96912E965F8C}
 	EndGlobalSection
 EndGlobal

@@ -52,6 +52,7 @@ namespace PanelControllerCLI
             new(Delete.MappedObject),
             new(Delete.PanelInfo),
             new(VirtualPanel.Initialize),
+            new(VirtualPanel.UseExisting),
             new(VirtualPanel.SendStroke),
             new(VirtualPanel.SetAnalogValue),
             new(VirtualPanel.Display),
@@ -1086,58 +1087,57 @@ namespace PanelControllerCLI
 
                 private bool _opened = false;
 
-                private readonly PacketCollector _collector = new();
+                private readonly StreamCollector _collector = new();
 
                 public VirtualChannel(PanelInfo info)
                 {
                     PanelInfo = info;
-                    _collector.PacketsReady += PacketsReady;
+                    _collector.Collector.StateChanged += CollectorStateChanged;
                 }
 
                 public bool IsOpen => _opened;
 
                 public event EventHandler<byte[]>? BytesReceived;
 
-                public void Close()
-                {
-                    _opened = false;
-                }
+                public void Close() => _opened = false;
 
                 public object? Open()
                 {
                     _opened = true;
-                    _collector.Discard();
+                    _collector.Collector.Reset();
                     return null;
                 }
 
                 public void SendInterfaceUpdate(InterfaceTypes interfaceType, uint id, object? state = null)
                 {
-                    ushort messageID = 0xFFFF;
                     byte[] data;
                     switch (interfaceType)
                     {
                         case InterfaceTypes.Digital:
                             if (state is not bool activated)
                                 throw new CLIFatalException("Expected state object to be of type bool");
-                            messageID = (int)ConnectedPanel.ReceiveIDs.DigitalStateUpdate;
-                            data = new byte[5];
-                            BitConverter.GetBytes(id).CopyTo(data, 0);
-                            data[4] = (byte)(activated ? 1 : 0);
+                            data =
+                            [
+                                (byte)ConnectedPanel.ReceiveIDs.DigitalStateUpdate,
+                                ..BitConverter.GetBytes(id),
+                                (byte)(activated ? 1 : 0)
+                            ];
                             break;
                         case InterfaceTypes.Analog:
                             if (state is not string value)
                                 throw new CLIFatalException("Expected state object to be of type string");
-                            messageID = (int)ConnectedPanel.ReceiveIDs.AnalogStateUpdate;
-                            data = Encoding.UTF8.GetBytes(value);
+                            data = [(byte)ConnectedPanel.ReceiveIDs.AnalogStateUpdate, ..Encoding.UTF8.GetBytes(value)];
                             break;
                         default:
-                            data = [];
-                            break;
+                            return;
                     }
-                    if (messageID == 0xFFFF)
-                        return;
-                    data = new Message(messageID, data).GetPackets((ushort)data.Length)[0].GetStreamBytes();
-                    BytesReceived?.Invoke(this, data);
+                    BytesReceived?.Invoke(this, data.EncodeWithSize());
+                }
+
+                private void CollectorStateChanged(object? sender, Collector.StateChangedEventArgs e)
+                {
+                    if (e.NewState == Collector.States.Collected)
+                        BytesReady(_collector.Collector.Data);
                 }
 
                 private void SendHandshake()
@@ -1150,10 +1150,9 @@ namespace PanelControllerCLI
                     BytesReceived?.Invoke(this, data);
                 }
 
-                private void PacketsReady(object sender, PacketsReadyEventArgs e)
+                private void BytesReady(byte[] bytes)
                 {
-                    Message message = new(e.Packets);
-                    switch ((ConnectedPanel.ReceiveIDs)message.ID)
+                    switch ((ConnectedPanel.ReceiveIDs)bytes[0])
                     {
                         case ConnectedPanel.ReceiveIDs.Handshake:
                             SendHandshake();
@@ -1163,10 +1162,7 @@ namespace PanelControllerCLI
                     }
                 }
 
-                private void VirtualPanelReceive(byte[] data)
-                {
-                    _collector.Collect(data);
-                }
+                private void VirtualPanelReceive(byte[] data) => _collector.Write(data);
 
                 public object? Send(byte[] data)
                 {
@@ -1199,6 +1195,7 @@ namespace PanelControllerCLI
                 Main.PanelsInfo[index].Name = name;
             }
 
+            [DisplayName("Virtual-UseExisting")]
             [Description("Use a virtual panel whose information is already known to be controlled through CLI commands.")]
             public static void UseExisting()
             {

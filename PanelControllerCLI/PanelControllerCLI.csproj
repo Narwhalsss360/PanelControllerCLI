@@ -8,7 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\dependencies\CLIApplication\src\CLIApplication\CLIApplication.csproj" />
-    <ProjectReference Include="..\dependencies\PanelController\dependencies\NStreamCom\src\C#\NStreamCom\NStreamCom.csproj" />
+    <ProjectReference Include="..\dependencies\PanelController\dependencies\NStreamCom\src\NStreamCom\NStreamCom.csproj" />
     <ProjectReference Include="..\dependencies\PanelController\PanelController\PanelController.csproj" />
   </ItemGroup>
 
