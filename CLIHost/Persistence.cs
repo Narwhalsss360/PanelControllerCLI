@@ -88,7 +88,7 @@ namespace CLIHost
             if (!File.Exists(StateFile))
                 return null;
             using FileStream stateFile = File.OpenRead(StateFile);
-            return JsonSerializer.Deserialize<State>(stateFile);
+            return JsonSerializer.Deserialize<State>(stateFile, SerializerOptions);
         }
 
         public static void EnsurePersistentFolder()
