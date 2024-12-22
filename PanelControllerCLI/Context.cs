@@ -17,7 +17,7 @@ namespace PanelControllerCLI
 
         public CLIInterpreter Interpreter { get => _interpreter; }
 
-        private List<Func<Type, Func<object?[], IPanelObject?>?>> _constructFunctionGenerators = new();
+        private readonly List<Func<Type, Func<object?[], IPanelObject?>?>> _constructFunctionGenerators = [];
 
         public object? SelectedObject
         {
