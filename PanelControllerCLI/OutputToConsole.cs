@@ -1,5 +1,6 @@
 ﻿using PanelController.PanelObjects;
 using PanelController.PanelObjects.Properties;
+using PanelControllerCLI.CLIFatalExceptions;
 
 namespace PanelControllerCLI
 {
@@ -17,7 +18,20 @@ namespace PanelControllerCLI
         
         private static readonly string RESTORE_SAVED_CURRENT_CURSOR_POSITION = "u";
 
-        private readonly TextWriter _out;
+        private TextWriter Out
+        {
+            get
+            {
+                try
+                {
+                    return PanelControllerCLI.CurrentContext.Interpreter.Out;
+                }
+                catch (UninitializedContextException)
+                {
+                    return TextWriter.Null;
+                }
+            }
+        }
 
         [ItemName]
         public string Name { get; set; } = "";
@@ -29,7 +43,6 @@ namespace PanelControllerCLI
         public OutputToConsole(string message)
         {
             Message = message;
-            _out = PanelControllerCLI.CurrentContext.Interpreter.Out;
             if (Name == "")
                 Name = $"Output: {message}";
         }
@@ -43,8 +56,8 @@ namespace PanelControllerCLI
         {
             for (int i = 0; i < repeat; i++)
             {
-                _out.Write(CSI + str);
-                _out.Flush();
+                Out.Write(CSI + str);
+                Out.Flush();
             }
         }
 
@@ -62,7 +75,7 @@ namespace PanelControllerCLI
             SendANSI(SCROLL_DOWN, lineCount);
             SendANSI(CURSOR_UP, lineCount);
             SendANSI(INSERT_NEW_LINE, lineCount);
-            _out.Write(str);
+            Out.Write(str);
             SendANSI(RESTORE_SAVED_CURRENT_CURSOR_POSITION);
         }
 
