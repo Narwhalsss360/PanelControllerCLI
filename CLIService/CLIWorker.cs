@@ -1,7 +1,13 @@
 using CLIApplication;
 using ConsoleRouter;
+using PanelControllerCLI.CLIFatalExceptions;
+using PanelControllerCLI.DataErrorExceptions;
+using PanelControllerCLI.UserErrorExceptions;
+using PanelControllerCLI;
 using System.IO.Pipes;
+using System.Reflection;
 using System.Text;
+using PanelController.Controller;
 
 namespace CLIService
 {
@@ -72,29 +78,34 @@ namespace CLIService
                 ctsCLIStop.Cancel();
             }, cancellationToken);
 
+            
+            using ServerIn @in = new(pipe, pipe);
+            using StreamWriter @out = new(pipe) { AutoFlush = true };
+            Interpreter.InterfaceName = pipeName;
+            Interpreter.In = @in;
+            Interpreter.Out = @out;
+            Interpreter.Error = @out;
+
+            Task consumer = @in.Consume(ctsCLIStop.Token).ContinueWith(task =>
+            {
+                if (task.Exception?.InnerException is ObjectDisposedException)
+                    return;
+
+                if (_logger.IsEnabled(LogLevel.Error))
+                    _logger.LogError("Consumer error: {}", task.Exception);
+            });
+
+            rerun:
             try
             {
-                using ServerIn @in = new(pipe, pipe);
-                using StreamWriter @out = new(pipe) { AutoFlush = true };
-                Interpreter.InterfaceName = pipeName;
-                Interpreter.In = @in;
-                Interpreter.Out = @out;
-                Interpreter.Error = @out;
-
-                Task consumer = @in.Consume(ctsCLIStop.Token).ContinueWith(task =>
-                {
-                    if (task.Exception?.InnerException is ObjectDisposedException)
-                        return;
-
-                    if (_logger.IsEnabled(LogLevel.Error))
-                        _logger.LogError("Consumer error: {}", task.Exception);
-                });
 
                 Interpreter.StopRunExecution = false;
                 Interpreter.Run(ctsCLIStop.Token);
             }
             catch (Exception ex)
             {
+                if (!ProcessTargetException(ex))
+                    goto rerun;
                 if (_logger.IsEnabled(LogLevel.Error))
                     _logger.LogError("Error occurred: {}", ex);
             }
@@ -153,8 +164,49 @@ namespace CLIService
             Settings.SaveSettings();
         }
 
+        private bool ProcessTargetException(Exception exception)
+        {
+            if (exception is CLIFatalException fatal)
+            {
+                string message = $"Fatal error occurred({fatal.GetType().Name}): {fatal.Message}";
+                Logger.Log(message, Logger.Levels.Error, "PanelControllerCLI-Host");
+                Interpreter.Error.WriteLine(message);
+                Interpreter.Error.WriteLine($"Trace:\n{fatal.StackTrace}");
+                return true;
+            }
+            else if (exception is UserErrorException userError)
+            {
+                Interpreter.Error.WriteLine($"{userError.GetType().Name}: {userError.Message}");
+            }
+            else if (exception is DataErrorException dataError)
+            {
+                Interpreter.Error.WriteLine($"{dataError.GetType().Name}: {dataError.Message}");
+            }
+            else if (exception is UserCancelException)
+            {
+                Interpreter.Out.WriteLine("Canceled.");
+            }
+            else if (exception is NotImplementedException exc)
+            {
+                Interpreter.Error.WriteLine($"The requested operation is not implemented ({exc.TargetSite?.DeclaringType}.{exc.TargetSite?.Name}). {exc.Message}");
+            }
+            else if (exception is TargetInvocationException target)
+            {
+                if (target.InnerException is null)
+                    throw new InvalidProgramException("Unkown exception occurred.", target);
+                return ProcessTargetException(target.InnerException);
+            }
+            else
+            {
+                Interpreter.Error.WriteLine($"An exception occurred of type {exception.GetType().Name}:{exception.Message}\nTrace:\n{exception.StackTrace}");
+                return true;
+            }
+
+            return false;
+        }
+
         private void Stop() => Interpreter.Stop();
 
-        private void Exit() => Stop();
+        private void Exit() => throw new Exception("Test");
     }
 }
