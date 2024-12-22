@@ -14,18 +14,22 @@ namespace CLIService
         private CancellationTokenSource? _stoppingCts;
 
         private NamedPipeServerStream? _consolePipe;
+        public CLIInterpreter Interpreter { get; set; } = new() { IgnoreCase = true };
+
+        public Settings Settings;
 
         private bool Connected { get => _consolePipe is not null; }
 
-        public CLIInterpreter Interpreter { get; set; } = new() { IgnoreCase = true };
 
         public CLIWorker(ILogger<CLIWorker> logger)
         {
             _logger = logger;
             PanelControllerCLI.PanelControllerCLI.Initialize(Interpreter);
             RouteInterpreterToVoid();
+            Settings = Settings.Load();
             Interpreter.Commands.Add(new(Stop));
             Interpreter.Commands.Add(new(Exit));
+            Interpreter.Commands.Add(new(Save));
         }
 
         private void NegotiateWithClient(object? sender, PipeNegotiator.ClientNegotiateResult e)
@@ -105,6 +109,7 @@ namespace CLIService
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            Load();
             _stoppingCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
             using NamedPipeServerStream negotiator = new(NEGOTIATOR_PIPE_NAME, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.FirstPipeInstance | PipeOptions.Asynchronous);
             while (!stoppingToken.IsCancellationRequested)
@@ -123,6 +128,7 @@ namespace CLIService
                     Interpreter.Stop();
                 }
             }
+            Save();
         }
 
         private void RouteInterpreterToVoid()
@@ -131,6 +137,20 @@ namespace CLIService
             Interpreter.Out = TextWriter.Null;
             Interpreter.Error = TextWriter.Null;
             Interpreter.In = TextReader.Null;
+        }
+
+        private void Load()
+        {
+            Settings.LoadExtensions();
+            Settings.LoadPanels();
+            Settings.LoadProfiles();
+        }
+
+        private void Save()
+        {
+            Settings.SavePanels();
+            Settings.SaveProfiles();
+            Settings.SaveSettings();
         }
 
         private void Stop() => Interpreter.Stop();
