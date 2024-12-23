@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using PanelControllerCLI;
+using System.Reflection;
 
 namespace CLIService
 {
@@ -137,6 +138,7 @@ namespace CLIService
             if (InvokeFuncMethod is not MethodInfo genericInvoke)
                 throw new InvalidOperationException("There is no InvokeFuncMethod");
 
+            PanelControllerCLI.PanelControllerCLI.CurrentContext.Interpreter.Out.WriteLine("Note: Creating a window requires to not be installed as service");
             return (T)genericInvoke.MakeGenericMethod([typeof(T)]).Invoke(dispatcher, [function])!;
         }
     }
