@@ -37,8 +37,13 @@ namespace CLIService
             Interpreter.Commands.Add(new(Stop));
             Interpreter.Commands.Add(new(Exit));
             Interpreter.Commands.Add(new(Save));
+
+#if WINDOWS
             if (WindowsDispatcher.DispatcherAvailable)
                 PanelControllerCLI.PanelControllerCLI.CurrentContext.AddConstructGenerator(CreateDispatchableGenerator);
+            Interpreter.Commands.Add(new(WindowUtility.ShowServiceWindow));
+            Interpreter.Commands.Add(new(WindowUtility.HideServiceWindow));
+#endif
         }
 
         private void NegotiateWithClient(object? sender, PipeNegotiator.ClientNegotiateResult e)
@@ -214,11 +219,13 @@ namespace CLIService
 
         private void Exit() => Stop();
 
+#if WINDOWS
         private Func<object?[], IPanelObject?>? CreateDispatchableGenerator(Type type)
         {
             if (!type.IsAssignableTo(WindowsDispatcher.PresentationFramework?.GetType("System.Windows.Window")))
                 return null;
             return args => WindowsDispatcher.Invoke(() => Activator.CreateInstance(type, args) as IPanelObject);
         }
+#endif
     }
 }

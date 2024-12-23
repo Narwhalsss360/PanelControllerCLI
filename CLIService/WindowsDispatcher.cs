@@ -1,4 +1,5 @@
-﻿using PanelControllerCLI;
+﻿#if WINDOWS
+using PanelControllerCLI;
 using System.Reflection;
 
 namespace CLIService
@@ -143,3 +144,4 @@ namespace CLIService
         }
     }
 }
+#endif
