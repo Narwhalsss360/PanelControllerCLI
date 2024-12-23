@@ -96,7 +96,7 @@ namespace CLIService
 
             Task consumer = @in.Consume(ctsCLIStop.Token).ContinueWith(task =>
             {
-                if (task.Exception?.InnerException is ObjectDisposedException)
+                if (task.Exception is null || task.Exception.InnerException is ObjectDisposedException)
                     return;
 
                 if (_logger.IsEnabled(LogLevel.Error))
@@ -121,7 +121,7 @@ namespace CLIService
                 {
                 }
 
-                if (_logger.IsEnabled(LogLevel.Error))
+                if (ex.Message != "Pipe is broken." && _logger.IsEnabled(LogLevel.Error))
                     _logger.LogError("Error occurred: {}", ex);
             }
 
