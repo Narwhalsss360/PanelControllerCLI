@@ -127,6 +127,8 @@ namespace CLIService
                 try
                 {
                     Exception? exception = await new PipeNegotiator(negotiator, NegotiateWithClient).Listen(stoppingToken);
+                    if (exception is OperationCanceledException)
+                        throw new OperationCanceledException("Negotiator task cancelled", exception);
                     if (exception is not null && _logger.IsEnabled(LogLevel.Critical))
                         _logger.LogCritical("Critical negotiator error: {Exception}", exception);
                     _consolePipe?.Write(Encoding.UTF8.GetBytes("Negotiator listener stopped, restarting..."));
