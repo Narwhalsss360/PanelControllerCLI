@@ -112,8 +112,15 @@ namespace CLIService
             }
             catch (Exception ex)
             {
-                if (!ProcessTargetException(ex))
-                    goto rerun;
+                try
+                {
+                    if (!ProcessTargetException(ex))
+                        goto rerun;
+                }
+                catch (IOException)
+                {
+                }
+
                 if (_logger.IsEnabled(LogLevel.Error))
                     _logger.LogError("Error occurred: {}", ex);
             }
@@ -123,7 +130,8 @@ namespace CLIService
                 _logger.LogInformation("Pipe {PipeName} finished.", pipeName);
 
             pipe.Close();
-            await checkTask;
+            if (!checkTask.IsCompleted)
+                await checkTask;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -203,7 +211,7 @@ namespace CLIService
             else if (exception is TargetInvocationException target)
             {
                 if (target.InnerException is null)
-                    throw new InvalidProgramException("Unkown exception occurred.", target);
+                    throw new InvalidProgramException("Unknown exception occurred.", target);
                 return ProcessTargetException(target.InnerException);
             }
             else
