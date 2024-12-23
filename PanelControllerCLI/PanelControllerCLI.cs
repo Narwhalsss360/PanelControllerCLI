@@ -1299,7 +1299,7 @@ namespace PanelControllerCLI
                     return;
                 }
 
-                if (CurrentContext.Interpreter.Commands.Find(cmd => cmd.Info.Name == command) is CLIInterpreter.Command cmd)
+                if (CurrentContext.Interpreter.Commands.FindCommand(command, CurrentContext.Interpreter.IgnoreCase) is CLIInterpreter.Command cmd)
                 {
                     CurrentContext.Interpreter.Out.WriteLine(cmd.GetFullDescription());
                     return;
