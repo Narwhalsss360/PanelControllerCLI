@@ -26,7 +26,6 @@ namespace CLIService
 
         private bool Connected { get => _consolePipe is not null; }
 
-
         public CLIWorker(ILogger<CLIWorker> logger)
         {
             _logger = logger;
@@ -60,7 +59,7 @@ namespace CLIService
 
         private async Task ServeClient(string pipeName, CancellationToken cancellationToken)
         {
-            using NamedPipeServerStream pipe = new(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.FirstPipeInstance | PipeOptions.Asynchronous);
+            using NamedPipeServerStream pipe = CreateNamedPipeServer.Create(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.FirstPipeInstance | PipeOptions.Asynchronous);
             _consolePipe = pipe;
             await pipe.WaitForConnectionAsync(cancellationToken);
             if (_logger.IsEnabled(LogLevel.Information))
@@ -122,7 +121,7 @@ namespace CLIService
         {
             Load();
             _stoppingCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-            using NamedPipeServerStream negotiator = new(NEGOTIATOR_PIPE_NAME, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.FirstPipeInstance | PipeOptions.Asynchronous);
+            using NamedPipeServerStream negotiator = CreateNamedPipeServer.Create(NEGOTIATOR_PIPE_NAME, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.FirstPipeInstance | PipeOptions.Asynchronous);
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
@@ -207,6 +206,6 @@ namespace CLIService
 
         private void Stop() => Interpreter.Stop();
 
-        private void Exit() => throw new Exception("Test");
+        private void Exit() => Stop();
     }
 }
