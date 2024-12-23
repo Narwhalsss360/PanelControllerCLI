@@ -61,6 +61,8 @@ namespace CLIService
 
             foreach (string file in Directory.GetFiles(ExtensionsFolder))
             {
+                if (!file.EndsWith(".dll"))
+                    continue;
                 try
                 {
                     Extensions.Load(Assembly.LoadFrom(file));
