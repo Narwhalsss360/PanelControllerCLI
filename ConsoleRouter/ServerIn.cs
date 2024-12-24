@@ -35,12 +35,9 @@ namespace ConsoleRouter
                 lock (_buffer)
                 {
                     _buffer.Enqueue(read);
-
                     if (DUAL_CAHARACTER_NEW_LINE && read == Environment.NewLine[0])
-                    {
                         lock (_blockFront)
                             _buffer.Enqueue((byte)In.ReadByte());
-                    }
                 }
             }
         }
@@ -48,10 +45,14 @@ namespace ConsoleRouter
         public override int Read()
         {
             lock (_blockFront) { }
-            if (_buffer.Count == 0)
+            if (_buffer.IsEmpty)
                 SendCommand(EscapeCommands.READ_REQUEST);
-            while (_buffer.Count == 0)
-                Thread.Sleep(2);
+
+            Task.Run(async () =>
+            {
+                while (_buffer.IsEmpty)
+                    await Task.Delay(2);
+            }).Wait();
 
             byte result;
             lock (_buffer)
@@ -62,7 +63,7 @@ namespace ConsoleRouter
         public override int Peek()
         {
             lock (_blockFront) { }
-            if (_buffer.Count == 0)
+            if (_buffer.IsEmpty)
                 return -1;
 
             byte result;
