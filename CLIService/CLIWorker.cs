@@ -108,7 +108,7 @@ namespace CLIService
             {
 
                 Interpreter.StopRunExecution = false;
-                Interpreter.Run(ctsCLIStop.Token);
+                await Interpreter.RunAsync(ctsCLIStop.Token);
             }
             catch (Exception ex)
             {
