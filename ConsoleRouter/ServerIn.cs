@@ -10,7 +10,7 @@ namespace ConsoleRouter
 
         private ConcurrentQueue<byte> _buffer = new();
 
-        private volatile bool _blockQueueReads = false;
+        private object _blockFront = new();
 
         public enum EscapeCommands
         {
@@ -38,9 +38,8 @@ namespace ConsoleRouter
 
                     if (DUAL_CAHARACTER_NEW_LINE && read == Environment.NewLine[0])
                     {
-                        _blockQueueReads = true;
-                        _buffer.Enqueue((byte)In.ReadByte());
-                        _blockQueueReads = false;
+                        lock (_blockFront)
+                            _buffer.Enqueue((byte)In.ReadByte());
                     }
                 }
             }
@@ -48,7 +47,7 @@ namespace ConsoleRouter
 
         public override int Read()
         {
-            while (_blockQueueReads) ;
+            lock (_blockFront) { }
             if (_buffer.Count == 0)
                 SendCommand(EscapeCommands.READ_REQUEST);
             while (_buffer.Count == 0)
@@ -62,10 +61,9 @@ namespace ConsoleRouter
 
         public override int Peek()
         {
-            while (_blockQueueReads) ;
+            lock (_blockFront) { }
             if (_buffer.Count == 0)
                 return -1;
-
 
             byte result;
             lock (_buffer)
