@@ -8,8 +8,6 @@ namespace ConsoleRouter
 
         public static readonly byte ESCAPE_CHARACTER = 0x1B;
 
-        private Mutex _bufferMutex = new();
-
         private ConcurrentQueue<byte> _buffer = new();
 
         private volatile bool _blockQueueReads = false;
@@ -34,17 +32,17 @@ namespace ConsoleRouter
             while (!cancellationToken.IsCancellationRequested)
             {
                 byte read = await In.ReadByteAsync(cancellationToken);
-                _bufferMutex.WaitOne();
-                _buffer.Enqueue(read);
-
-                if (DUAL_CAHARACTER_NEW_LINE && read == Environment.NewLine[0])
+                lock (_buffer)
                 {
-                    _blockQueueReads = true;
-                    _buffer.Enqueue((byte)In.ReadByte());
-                    _blockQueueReads = false;
-                }
+                    _buffer.Enqueue(read);
 
-                _bufferMutex.ReleaseMutex();
+                    if (DUAL_CAHARACTER_NEW_LINE && read == Environment.NewLine[0])
+                    {
+                        _blockQueueReads = true;
+                        _buffer.Enqueue((byte)In.ReadByte());
+                        _blockQueueReads = false;
+                    }
+                }
             }
         }
 
@@ -56,10 +54,9 @@ namespace ConsoleRouter
             while (_buffer.Count == 0)
                 Thread.Sleep(2);
 
-            _bufferMutex.WaitOne();
             byte result;
-            while (!_buffer.TryDequeue(out result)) ;
-            _bufferMutex.ReleaseMutex();
+            lock (_buffer)
+                while (!_buffer.TryDequeue(out result)) ;
             return result;
         }
 
@@ -69,10 +66,10 @@ namespace ConsoleRouter
             if (_buffer.Count == 0)
                 return -1;
 
-            _bufferMutex.WaitOne();
+
             byte result;
-            while (!_buffer.TryPeek(out result)) ;
-            _bufferMutex.ReleaseMutex();
+            lock (_buffer)
+                while (!_buffer.TryPeek(out result)) ;
             return result;
         }
 
